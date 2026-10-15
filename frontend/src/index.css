@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: theme('colors.ink.950');
+    /* Faint circuit grid + logo glow, fixed so it never scrolls with content */
+    background-image:
+      radial-gradient(1100px 520px at 12% -8%, rgba(124, 58, 237, 0.16), transparent 60%),
+      radial-gradient(900px 480px at 100% 0%, rgba(34, 211, 238, 0.07), transparent 60%),
+      linear-gradient(rgba(130, 140, 220, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(130, 140, 220, 0.035) 1px, transparent 1px);
+    background-size: auto, auto, 32px 32px, 32px 32px;
+    background-attachment: fixed;
+    color: theme('colors.fog.100');
+    font-family: theme('fontFamily.sans');
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(139, 92, 246, 0.35);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid theme('colors.signal.400');
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme('colors.ink.600');
+    border-radius: 999px;
+    border: 3px solid theme('colors.ink.950');
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme('colors.ink.500');
+  }
+
+  select option {
+    background: theme('colors.ink.800');
+    color: theme('colors.fog.100');
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border border-ink-600/70 bg-ink-850/85 shadow-panel backdrop-blur-sm;
+  }
+  .panel-inset {
+    @apply rounded-xl border border-ink-600/50 bg-ink-900/70;
+  }
+  .panel-title {
+    @apply font-display text-[15px] font-semibold tracking-wide text-fog-50;
+  }
+  .page-title {
+    @apply font-display text-2xl font-semibold tracking-wide text-white sm:text-[28px];
+  }
+  .muted {
+    @apply text-fog-400;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-4 py-2.5 text-[13px] font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-glow hover:bg-brand-500;
+  }
+  .btn-signal {
+    @apply btn bg-signal-400 text-ink-950 shadow-glow-cyan hover:bg-signal-300;
+  }
+  .btn-secondary {
+    @apply btn border border-ink-500/70 bg-ink-700/60 text-fog-100 hover:border-ink-500 hover:bg-ink-700;
+  }
+  .btn-ghost {
+    @apply btn text-fog-300 hover:bg-ink-700/60 hover:text-white;
+  }
+  .btn-danger {
+    @apply btn border border-risk-critical/40 bg-risk-critical/10 text-rose-200 hover:bg-risk-critical/20;
+  }
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-fog-300 transition-colors hover:bg-ink-700/70 hover:text-white disabled:opacity-40;
+  }
+
+  .input {
+    @apply w-full rounded-[10px] border border-ink-500/60 bg-ink-900/80 px-3.5 py-2.5 text-[14px] text-fog-50 placeholder:text-fog-500 transition-colors focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/25;
+  }
+  .label {
+    @apply mb-1.5 block text-[13px] font-medium text-fog-200;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[12px] font-medium;
+  }
+  .kbd {
+    @apply inline-flex items-center whitespace-nowrap rounded-md border border-ink-500/80 bg-ink-800 px-1.5 py-0.5 font-mono text-[11px] text-fog-300;
+  }
+
+  .tab {
+    @apply relative inline-flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-[13px] font-medium text-fog-400 transition-colors hover:text-fog-100;
+  }
+  .tab-active {
+    @apply text-white after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-signal-400;
+  }
+
+  .data-table {
+    @apply w-full border-collapse text-left text-[13px];
+  }
+  .data-table th {
+    @apply border-b border-ink-600/70 px-4 py-2.5 text-[12px] font-medium text-fog-400;
+  }
+  .data-table td {
+    @apply border-b border-ink-700/70 px-4 py-3 align-middle;
+  }
+  .data-table tbody tr {
+    @apply transition-colors hover:bg-ink-700/30;
+  }
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .domain {
+    @apply font-mono text-[13px] text-fog-50;
+  }
+  .num {
+    @apply font-display tabular-nums;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .motion-sweep {
+    display: none;
+  }
+}
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
