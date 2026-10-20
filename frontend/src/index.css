@@ -66,48 +66,48 @@
 
 @layer components {
   .panel {
-    @apply rounded-2xl border border-ink-600/70 bg-ink-850/85 shadow-panel backdrop-blur-sm;
+    @apply rounded-2xl border border-cyan-500/20 bg-[#050c1e]/85 shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-md;
   }
   .panel-inset {
-    @apply rounded-xl border border-ink-600/50 bg-ink-900/70;
+    @apply rounded-xl border border-cyan-500/20 bg-[#030816]/90;
   }
   .panel-title {
-    @apply font-display text-[15px] font-semibold tracking-wide text-fog-50;
+    @apply font-display text-[15px] font-bold tracking-wider text-cyan-300;
   }
   .page-title {
-    @apply font-display text-2xl font-semibold tracking-wide text-white sm:text-[28px];
+    @apply font-display text-2xl font-bold tracking-wider text-white sm:text-[28px];
   }
   .muted {
     @apply text-fog-400;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-4 py-2.5 text-[13px] font-semibold transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-4 py-2.5 text-[13px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-sm {
     @apply px-3 py-1.5 text-xs;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white shadow-glow hover:bg-brand-500;
+    @apply btn bg-gradient-to-r from-cyan-500 to-blue-600 text-ink-950 font-bold shadow-[0_0_15px_rgba(34,211,238,0.35)] hover:brightness-110 active:scale-95;
   }
   .btn-signal {
     @apply btn bg-signal-400 text-ink-950 shadow-glow-cyan hover:bg-signal-300;
   }
   .btn-secondary {
-    @apply btn border border-ink-500/70 bg-ink-700/60 text-fog-100 hover:border-ink-500 hover:bg-ink-700;
+    @apply btn border border-cyan-500/30 bg-cyan-950/40 text-cyan-200 hover:border-cyan-400 hover:bg-cyan-900/60 hover:text-white;
   }
   .btn-ghost {
-    @apply btn text-fog-300 hover:bg-ink-700/60 hover:text-white;
+    @apply btn text-fog-300 hover:bg-cyan-950/40 hover:text-white;
   }
   .btn-danger {
     @apply btn border border-risk-critical/40 bg-risk-critical/10 text-rose-200 hover:bg-risk-critical/20;
   }
   .icon-btn {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-fog-300 transition-colors hover:bg-ink-700/70 hover:text-white disabled:opacity-40;
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-fog-300 transition-colors hover:bg-cyan-950/50 hover:text-white disabled:opacity-40;
   }
 
   .input {
-    @apply w-full rounded-[10px] border border-ink-500/60 bg-ink-900/80 px-3.5 py-2.5 text-[14px] text-fog-50 placeholder:text-fog-500 transition-colors focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-500/25;
+    @apply w-full rounded-xl border border-cyan-500/30 bg-[#030816]/95 px-3.5 py-2.5 text-[14px] text-white placeholder:text-fog-500 transition-all focus:border-cyan-400 focus:outline-none focus:shadow-[0_0_15px_rgba(34,211,238,0.25)];
   }
   .label {
     @apply mb-1.5 block text-[13px] font-medium text-fog-200;
@@ -117,27 +117,27 @@
     @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[12px] font-medium;
   }
   .kbd {
-    @apply inline-flex items-center whitespace-nowrap rounded-md border border-ink-500/80 bg-ink-800 px-1.5 py-0.5 font-mono text-[11px] text-fog-300;
+    @apply inline-flex items-center whitespace-nowrap rounded-md border border-cyan-500/40 bg-cyan-950/60 px-1.5 py-0.5 font-mono text-[11px] text-cyan-300;
   }
 
   .tab {
     @apply relative inline-flex items-center gap-2 whitespace-nowrap px-1 pb-3 pt-1 text-[13px] font-medium text-fog-400 transition-colors hover:text-fog-100;
   }
   .tab-active {
-    @apply text-white after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-signal-400;
+    @apply text-white after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:rounded-full after:bg-cyan-400 after:shadow-[0_0_8px_#22d3ee];
   }
 
   .data-table {
     @apply w-full border-collapse text-left text-[13px];
   }
   .data-table th {
-    @apply border-b border-ink-600/70 px-4 py-2.5 text-[12px] font-medium text-fog-400;
+    @apply border-b border-cyan-500/20 px-4 py-3 text-[11px] font-display font-bold uppercase tracking-wider text-cyan-400/80;
   }
   .data-table td {
-    @apply border-b border-ink-700/70 px-4 py-3 align-middle;
+    @apply border-b border-ink-800/60 px-4 py-3 align-middle text-fog-200;
   }
   .data-table tbody tr {
-    @apply transition-colors hover:bg-ink-700/30;
+    @apply transition-all hover:bg-cyan-950/25;
   }
   .data-table tbody tr:last-child td {
     @apply border-b-0;
@@ -156,6 +156,136 @@
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Cyber Threat Intelligence Visualizer Utilities */
+  .cyber-grid-floor {
+    background-image: 
+      linear-gradient(rgba(34, 211, 238, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 211, 238, 0.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+    transform: perspective(600px) rotateX(65deg) scale(2.2);
+    transform-origin: center bottom;
+  }
+
+  .cyber-scanlines {
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.18),
+      rgba(0, 0, 0, 0.18) 1px,
+      transparent 1px,
+      transparent 2px
+    );
+    pointer-events: none;
+  }
+
+  .cyber-glass-panel {
+    background: rgba(4, 9, 26, 0.78);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(34, 211, 238, 0.22);
+    box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.8), 0 0 24px -6px rgba(34, 211, 238, 0.15) inset;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.25s ease;
+  }
+
+  .cyber-glass-panel:hover {
+    border-color: rgba(34, 211, 238, 0.55);
+    box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.9), 0 0 32px -4px rgba(34, 211, 238, 0.35) inset, 0 0 20px rgba(34, 211, 238, 0.2);
+  }
+
+  .animate-cyber-float {
+    animation: cyber-float 6s ease-in-out infinite;
+  }
+
+  .animate-cyber-float-delayed {
+    animation: cyber-float 7s ease-in-out 1.5s infinite;
+  }
+
+  .animate-cyber-float-reverse {
+    animation: cyber-float-reverse 8s ease-in-out 0.8s infinite;
+  }
+
+  .animate-radar-sweep-beam {
+    animation: radar-sweep 5s linear infinite;
+  }
+
+  .animate-pulse-cyan {
+    animation: pulse-cyan 2.4s ease-in-out infinite;
+  }
+
+  .animate-sonar-ring {
+    animation: sonar-ring 3.5s cubic-bezier(0.1, 0.7, 0.1, 1) infinite;
+  }
+
+  .animate-evidence-fly {
+    animation: evidence-fly 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+}
+
+@keyframes cyber-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(0.4deg);
+  }
+}
+
+@keyframes cyber-float-reverse {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(8px) rotate(-0.4deg);
+  }
+}
+
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-cyan {
+  0%, 100% {
+    opacity: 0.6;
+    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.4));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 22px rgba(34, 211, 238, 0.85));
+  }
+}
+
+@keyframes sonar-ring {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.15;
+  }
+  100% {
+    transform: scale(1.65);
+    opacity: 0;
+  }
+}
+
+@keyframes evidence-fly {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) translateY(20px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.04) translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 

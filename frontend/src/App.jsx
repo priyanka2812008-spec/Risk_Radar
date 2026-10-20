@@ -12,10 +12,11 @@ import ApiKeysManager from './components/ApiKeysManager';
 import ThreatAnalytics from './components/ThreatAnalytics';
 import SevenDimensionsEngine from './components/SevenDimensionsEngine';
 import ScanProgress from './components/ScanProgress';
+import CyberThreatVisualizer from './components/CyberThreatVisualizer';
 import MobileBottomNav from './components/MobileBottomNav';
 import { api, errorMessage } from './services/api';
 
-const TABS = ['dashboard', 'pre-execution', 'report', 'history', 'investigations', 'watchlist', 'intelligence', 'settings', '7d-engine'];
+const TABS = ['dashboard', 'threat-globe', 'pre-execution', 'report', 'history', 'investigations', 'watchlist', 'intelligence', 'settings', '7d-engine'];
 
 const parseHash = () => {
   const [, tab = 'dashboard', id] = (window.location.hash || '').split('/');
@@ -300,7 +301,14 @@ export default function App() {
           </div>
         )}
 
-        <main className="mx-auto w-full max-w-[1320px] flex-1 px-3.5 pb-24 pt-4 sm:px-6 sm:pb-28 sm:pt-6 lg:px-8 lg:pb-16 lg:pt-8">
+        <main className={`mx-auto w-full flex-1 ${route.tab === 'threat-globe' || route.tab === 'dashboard' ? 'max-w-[1560px] p-2 sm:p-4' : 'max-w-[1320px] px-3.5 pb-24 pt-4 sm:px-6 sm:pb-28 sm:pt-6 lg:px-8 lg:pb-16 lg:pt-8'}`}>
+          {route.tab === 'threat-globe' && (
+            <CyberThreatVisualizer
+              onOpenReport={openScan}
+              onNavigate={navigate}
+            />
+          )}
+
           {route.tab === 'dashboard' && (
             <DashboardView
               stats={stats}

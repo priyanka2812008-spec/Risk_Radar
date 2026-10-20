@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   FileSearch, Eye, RotateCw, Download, Printer, BadgeCheck, ExternalLink, AlertTriangle, CheckCircle2, XCircle,
   Info, Mail, Phone, MapPin, Send, MessageSquare, Layers, ListChecks, Fingerprint, Activity, Radar, Copy, Check, ArrowRight,
-  Network, Globe, DollarSign, UserCheck, ShieldAlert
+  Network, Globe, DollarSign, UserCheck, ShieldAlert, ShieldCheck
 } from 'lucide-react';
 import { Panel, RiskBadge, ScoreRing, Tabs, Segmented, Meter, Modal, EmptyState, Tag } from './ui';
 import { riskMeta, scoreColor, formatDateTime } from '../lib/risk';
@@ -120,6 +120,42 @@ function OverviewTab({ scan }) {
 
   return (
     <div className="space-y-6">
+      {scan.governmentVerification && (
+        <div className={`rounded-2xl border p-5 ${scan.governmentVerification.verified ? 'border-emerald-500/30 bg-emerald-500/[0.06]' : 'border-rose-500/30 bg-rose-500/[0.08]'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              {scan.governmentVerification.verified ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+              ) : (
+                <ShieldAlert className="h-5 w-5 text-rose-400" />
+              )}
+              <div>
+                <span className="font-semibold text-white">{scan.governmentVerification.badge}</span>
+                <span className="ml-2 text-[12px] text-fog-400">· {scan.governmentVerification.regulator}</span>
+              </div>
+            </div>
+            <span
+              className="text-[12px] font-bold px-2.5 py-1 rounded"
+              style={{
+                backgroundColor: `${scan.governmentVerification.badgeColor}25`,
+                color: scan.governmentVerification.verified ? '#86efac' : '#fca5a5'
+              }}
+            >
+              {scan.governmentVerification.status}
+            </span>
+          </div>
+          <p className="mt-2 text-[13.5px] text-fog-200">{scan.governmentVerification.citation}</p>
+          <ul className="mt-2.5 space-y-1 text-[12.5px] text-fog-300">
+            {(scan.governmentVerification.evidence || []).map((ev, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className={scan.governmentVerification.verified ? 'text-emerald-400' : 'text-rose-400'}>•</span>
+                <span>{ev}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Why this score" subtitle="The signals that moved the needle most" icon={AlertTriangle}>
           <ul className="space-y-3.5">
@@ -727,6 +763,22 @@ export default function RiskReportView({ scan, loading, onAddToWatchlist, onResc
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <RiskBadge level={scan.risk_level} />
+              {scan.governmentVerification?.badge && (
+                <span className={`chip inline-flex items-center gap-1.5 text-xs font-medium ${
+                  scan.governmentVerification.verified
+                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                    : scan.governmentVerification.status === 'prohibited'
+                    ? 'border-rose-500/40 bg-rose-500/15 text-rose-300'
+                    : 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                }`}>
+                  {scan.governmentVerification.verified ? (
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                  ) : (
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                  )}
+                  {scan.governmentVerification.badge}
+                </span>
+              )}
               {unknownSuspicious && <span className="chip border-signal-400/40 bg-signal-400/10 text-signal-100">Unknown but suspicious</span>}
               {scan.classification?.primary && <Tag>{scan.classification.primary}</Tag>}
             </div>

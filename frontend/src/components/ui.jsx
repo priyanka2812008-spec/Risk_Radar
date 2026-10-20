@@ -18,17 +18,17 @@ export function RiskBadge({ level, score, className = '' }) {
 }
 
 export function Tag({ children, className = '' }) {
-  return <span className={`chip border-ink-500/70 bg-ink-700/50 text-fog-200 ${className}`}>{children}</span>;
+  return <span className={`chip border-cyan-500/30 bg-cyan-950/50 text-cyan-200 ${className}`}>{children}</span>;
 }
 
 export function Panel({ title, subtitle, action, children, className = '', bodyClassName = 'p-5', icon: Icon }) {
   return (
     <section className={`panel ${className}`}>
       {(title || action) && (
-        <header className="flex items-start justify-between gap-3 border-b border-ink-600/60 px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-cyan-500/20 px-5 py-4">
           <div className="min-w-0">
             <h2 className="panel-title flex items-center gap-2">
-              {Icon && <Icon className="h-4 w-4 text-brand-300" aria-hidden />}
+              {Icon && <Icon className="h-4 w-4 text-cyan-400" aria-hidden />}
               {title}
             </h2>
             {subtitle && <p className="mt-0.5 text-[13px] text-fog-400">{subtitle}</p>}
@@ -136,19 +136,19 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/75 p-4 backdrop-blur-sm sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className={`panel w-full ${width} animate-fade-in bg-ink-850`}>
-        <div className="flex items-start justify-between gap-4 border-b border-ink-600/60 px-5 py-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-4 backdrop-blur-md sm:items-center" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className={`panel w-full ${width} animate-fade-in border border-cyan-500/30 bg-[#050c1e]/95 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.85)]`}>
+        <div className="flex items-start justify-between gap-4 border-b border-cyan-500/20 px-5 py-4">
           <div>
-            <h2 className="font-display text-lg font-semibold text-white">{title}</h2>
+            <h2 className="font-display text-lg font-bold tracking-wider text-white">{title}</h2>
             {subtitle && <p className="mt-0.5 text-[13px] text-fog-400">{subtitle}</p>}
           </div>
-          <button type="button" onClick={onClose} className="icon-btn -mr-2 -mt-1" aria-label="Close">
+          <button type="button" onClick={onClose} className="icon-btn -mr-2 -mt-1 text-fog-400 hover:text-white" aria-label="Close">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-ink-600/60 px-5 py-3.5">{footer}</div>}
+        {footer && <div className="flex justify-end gap-2 border-t border-cyan-500/20 px-5 py-3.5">{footer}</div>}
       </div>
     </div>
   );
@@ -156,7 +156,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
 
 export function Segmented({ options, value, onChange, className = '' }) {
   return (
-    <div className={`inline-flex max-w-full overflow-x-auto no-scrollbar rounded-[10px] border border-ink-600/70 bg-ink-900/70 p-0.5 ${className}`} role="tablist">
+    <div className={`inline-flex max-w-full overflow-x-auto no-scrollbar rounded-xl border border-cyan-500/25 bg-[#030816]/90 p-0.5 ${className}`} role="tablist">
       {options.map((o) => {
         const id = typeof o === 'string' ? o : o.id;
         const label = typeof o === 'string' ? o : o.label;
@@ -168,8 +168,10 @@ export function Segmented({ options, value, onChange, className = '' }) {
             role="tab"
             aria-selected={active}
             onClick={() => onChange(id)}
-            className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
-              active ? 'bg-ink-600 text-white' : 'text-fog-400 hover:text-fog-100'
+            className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-[12px] font-medium transition-all ${
+              active
+                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-ink-950 font-bold shadow-[0_0_12px_rgba(34,211,238,0.35)]'
+                : 'text-fog-400 hover:text-white'
             }`}
           >
             {label}

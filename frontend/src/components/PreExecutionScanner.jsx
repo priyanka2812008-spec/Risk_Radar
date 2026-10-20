@@ -272,9 +272,43 @@ export default function PreExecutionScanner({ request, onAddToWatchlist, onOpenR
                   <RiskBadge level={s.riskLevel} />
                   <Tag>{result.classification.primary} · {result.classification.confidence}%</Tag>
                   {result.demoMode && <Tag className="border-signal-400/40 text-signal-100">Simulated feeds</Tag>}
+                  {result.governmentVerification?.badge && (
+                    <span
+                      className="chip font-medium text-[12px] flex items-center gap-1.5 px-3 py-1 rounded-full border shadow-sm"
+                      style={{
+                        borderColor: `${result.governmentVerification.badgeColor}80`,
+                        backgroundColor: `${result.governmentVerification.badgeColor}20`,
+                        color: result.governmentVerification.verified ? '#86efac' : '#fca5a5'
+                      }}
+                    >
+                      {result.governmentVerification.verified ? <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" /> : <ShieldAlert className="h-3.5 w-3.5 text-rose-400" />}
+                      {result.governmentVerification.badge}
+                    </span>
+                  )}
                 </div>
                 <h2 className="mt-3 break-all font-mono text-[22px] text-white">{result.domain}</h2>
                 <p className="mt-2 text-[15px] leading-relaxed text-fog-200">{s.riskDescription}</p>
+
+                {result.governmentVerification && !result.governmentVerification.verified && (
+                  <div className="mt-3 rounded-xl border border-rose-500/40 bg-rose-500/[0.08] px-4 py-3">
+                    <div className="font-display text-[15px] font-semibold text-rose-300 flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-rose-400" />
+                      {result.governmentVerification.badge}
+                    </div>
+                    <p className="mt-1 text-[13px] leading-snug text-fog-200">
+                      {result.governmentVerification.citation}
+                    </p>
+                    <ul className="mt-2 space-y-1 text-[12px] text-fog-300">
+                      {(result.governmentVerification.evidence || []).map((ev, i) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <span className="text-rose-400 mt-0.5">•</span>
+                          <span>{ev}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {s.unknownSuspicious && (
                   <div className="mt-4 rounded-xl border border-signal-400/40 bg-signal-400/[0.08] px-4 py-3">
                     <div className="font-display text-[16px] font-semibold text-signal-300">Unknown but suspicious</div>

@@ -135,9 +135,9 @@ export default function TopHeader({ recentScans = [], queue = [], watchlist = []
   };
 
   return (
-    <header className="no-print sticky top-0 z-30 border-b border-ink-600/50 bg-ink-950/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-15 sm:h-16 max-w-[1320px] items-center gap-2 sm:gap-3 px-3 sm:px-6 lg:px-8">
-        <button type="button" className="icon-btn lg:hidden shrink-0" onClick={onOpenNav} aria-label="Open navigation">
+    <header className="no-print sticky top-0 z-30 border-b border-cyan-500/20 bg-[#030714]/90 backdrop-blur-xl">
+      <div className="mx-auto flex h-15 sm:h-16 max-w-[1560px] items-center gap-3 sm:gap-4 px-3 sm:px-6 lg:px-8">
+        <button type="button" className="icon-btn lg:hidden shrink-0 text-fog-300 hover:text-white" onClick={onOpenNav} aria-label="Open navigation">
           <Menu className="h-5 w-5" />
         </button>
 
@@ -147,20 +147,38 @@ export default function TopHeader({ recentScans = [], queue = [], watchlist = []
           className="flex items-center gap-2 lg:hidden shrink-0"
           aria-label="Risk Radar home"
         >
-          <span
-            className="block h-8 w-8 shrink-0 rounded-lg bg-ink-950 ring-1 ring-brand-400/40"
-            style={{ backgroundImage: 'url(/risk-radar-logo.jpg)', backgroundSize: 'auto 165%', backgroundPosition: '50% 19%' }}
-            aria-hidden
-          />
+          <span className="font-display font-bold text-white text-base">
+            RISK <span className="text-cyan-400">RADAR</span>
+          </span>
         </button>
 
-        <div ref={searchRef} className="relative max-w-xl flex-1 min-w-0">
+        {/* Center Quick Navigation Tabs matching reference navbar */}
+        <nav className="hidden lg:flex items-center gap-1 font-sans text-xs">
+          {[
+            { id: 'dashboard', label: 'Overview' },
+            { id: 'threat-globe', label: 'Threat Intelligence' },
+            { id: 'pre-execution', label: 'Scan' },
+            { id: 'history', label: 'History' },
+            { id: 'report', label: 'Reports' }
+          ].map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onNavigate(t.id)}
+              className="px-3 py-1.5 rounded-lg text-fog-300 hover:text-white hover:bg-cyan-950/40 transition-all font-medium"
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        <div ref={searchRef} className="relative max-w-md flex-1 min-w-0 ml-auto">
           <form onSubmit={submit} role="search">
             <label htmlFor="global-search" className="sr-only">
               Search scanned domains or scan a new URL
             </label>
-            <div className={`flex items-center rounded-[10px] border transition-colors ${focused ? 'border-brand-400/70 bg-ink-850' : 'border-ink-600/70 bg-ink-850/70 hover:border-ink-500'}`}>
-              <span className="pl-2.5 sm:pl-3 text-fog-400 shrink-0">{scanning ? <Loader2 className="h-4 w-4 animate-spin text-signal-400" /> : <Search className="h-4 w-4" />}</span>
+            <div className={`flex items-center rounded-xl border transition-all ${focused ? 'border-cyan-400 bg-[#050c1e] shadow-[0_0_15px_rgba(34,211,238,0.25)]' : 'border-cyan-500/30 bg-[#050c1e]/80 hover:border-cyan-400/60'}`}>
+              <span className="pl-2.5 sm:pl-3 text-cyan-400 shrink-0">{scanning ? <Loader2 className="h-4 w-4 animate-spin text-cyan-400" /> : <Search className="h-4 w-4" />}</span>
               <input
                 id="global-search"
                 ref={inputRef}
@@ -229,6 +247,18 @@ export default function TopHeader({ recentScans = [], queue = [], watchlist = []
         </div>
 
         <div ref={menusRef} className="ml-auto flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => onNavigate && onNavigate('threat-globe')}
+            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/60 px-2.5 py-1.5 font-mono text-xs font-semibold text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.2)] hover:border-cyan-400 hover:bg-cyan-900/70 transition-all mr-1"
+            title="Switch to 3D Cyber Threat Intelligence Globe"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-cyan-400" />
+            </span>
+            <span>3D Threat Globe</span>
+          </button>
           <div className="relative">
             <button
               type="button"

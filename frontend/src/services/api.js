@@ -100,6 +100,11 @@ export const api = {
     return res.data;
   },
 
+  analyzeUrl: async (url) => {
+    const res = await client.post('/scan/analyze-url', { url });
+    return res.data;
+  },
+
   scanBulk: async (urls) => {
     const res = await client.post('/scan/bulk', { urls });
     return res.data;
