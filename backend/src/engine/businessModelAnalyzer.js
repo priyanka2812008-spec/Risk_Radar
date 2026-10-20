@@ -1,9 +1,5 @@
-/**
- * Business Model Intelligence Analyzer
- * Evaluates commercial legitimacy, revenue mechanics, regulatory licensing,
- * gambling/betting operations, multi-tier referral compensation schemes, and financial exposure.
- * Uses deterministic analysis for realistic score variation.
- */
+import { detectGamblingOrPonzi } from '../services/gamblingDetector.js';
+import { checkGovernmentVerification } from '../services/governmentVerification.js';
 
 function hashCode(str) {
   let hash = 0;
@@ -22,34 +18,53 @@ export const analyzeBusinessModel = (url, parsedUrl, context = {}) => {
 
   const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(domain);
 
-  // 1. Online Gambling, Sports Betting, Casino, iGaming
-  const gamblingKeywords = [
-    '1xbet', 'bet365', 'parimatch', 'dafabet', 'stake', 'melbet', 'betway',
-    'bet', 'casino', 'gambling', 'poker', 'sportsbook', 'slot', 'roulette',
-    'wager', 'satta', 'matka', 'i-gaming'
-  ];
-  const isGambling = gamblingKeywords.some(kw => domain.includes(kw));
+  const live = context.liveTelemetry;
+  const gpCheck = detectGamblingOrPonzi(domain, url, live);
+  const govtCheck = checkGovernmentVerification(domain, url);
+
+  if (govtCheck.isGovt) {
+    signals.push({
+      category: 'Business Model',
+      indicator: 'Official Sovereign Statutory Authority',
+      evidence: `Operating under sovereign public governance mandate (${govtCheck.citation}). Exempt from commercial licensing risk.`,
+      severity: 'LOW',
+      confidence: 99,
+      scoreImpact: -25,
+      signalType: 'BENIGN_SIGNAL',
+      sourceType: 'Tier 1: Government / Regulator / Law-Enforcement Source'
+    });
+    return {
+      score: 2,
+      signals,
+      metadata: { businessCategory: 'Government / Sovereign Entity' }
+    };
+  }
+
+  const liveSatta = live?.page?.categoriesMatched?.some(c => c.category === 'sattaMatka');
+  const liveGambling = live?.page?.categoriesMatched?.some(c => c.category === 'gamblingCasino');
+  const liveStock = live?.page?.categoriesMatched?.some(c => c.category === 'stockTipsAdvisory');
+  const livePhish = Boolean(live?.page?.brandImpersonation || live?.page?.categoriesMatched?.some(c => c.category === 'phishingHarvesting'));
+
+  // 1. Online Gambling, Sports Betting, Casino, Satta Matka
+  const isGambling = gpCheck.isGambling || liveSatta || liveGambling;
 
   // 2. Ponzi & High-Yield Schemes
-  const isHighRiskFinancial = 
-    domain.includes('profit') || 
-    domain.includes('crypto-yield') || 
-    domain.includes('double') || 
-    domain.includes('fastcash') || 
-    domain.includes('ponzi') || 
-    domain.includes('trap') || 
-    domain.includes('100x');
+  const isHighRiskFinancial = gpCheck.isPonzi || Boolean(live?.page?.categoriesMatched?.some(c => c.category === 'ponziYield'));
 
   // 3. Phishing & Credential Harvesting Gateway
   const isPhishingModel = 
+    livePhish ||
     domain.includes('secure-login') || 
     domain.includes('verify-account') || 
     domain.includes('update-wallet') ||
     domain.includes('portal-auth') ||
     domain.includes('confirm-identity');
 
-  // 4. Unlicensed Financial Trading / Binary Options
+  // 4. Unlicensed Financial Trading / Stock Tips
   const isUnlicensedTrading = 
+    liveStock ||
+    domain.includes('stocktalk') ||
+    domain.includes('stock-tips') ||
     domain.includes('trade-vip') || 
     domain.includes('binary-options') ||
     domain.includes('forex-guaranteed');

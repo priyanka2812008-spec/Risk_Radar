@@ -107,15 +107,28 @@ export const analyzeDomain = (parsedUrl, context = {}) => {
   // --- TLD Risk Assessment ---
   const highRiskTlds = ['.click', '.top', '.xyz', '.bet', '.win', '.vip', '.stream', '.cfd', '.sbs', '.buzz', '.rest', '.surf', '.icu', '.monster', '.tk', '.ml', '.ga', '.cf', '.gq'];
   const mediumRiskTlds = ['.info', '.biz', '.site', '.online', '.store', '.club', '.fun', '.space', '.pw', '.cc', '.ws'];
-  const trustedTlds = ['.gov', '.edu', '.mil', '.int'];
-  const standardTlds = ['.com', '.org', '.net', '.io', '.co', '.dev', '.app', '.ai'];
+  const trustedTlds = ['.gov.in', '.nic.in', '.gov', '.mil', '.int', '.ac.in', '.edu.in', '.gov.uk', '.gov.au'];
+  const trustedSpecific = ['rbi.org.in', 'sebi.gov.in', 'gst.gov.in', 'incometax.gov.in', 'mca.gov.in', 'uidai.gov.in', 'npci.org.in'];
+  const standardTlds = ['.com', '.org', '.net', '.io', '.co', '.dev', '.app', '.ai', '.in'];
 
   const matchedHighTld = highRiskTlds.find(tld => domain.endsWith(tld));
   const matchedMedTld = mediumRiskTlds.find(tld => domain.endsWith(tld));
-  const matchedTrusted = trustedTlds.find(tld => domain.endsWith(tld));
+  const matchedTrusted = trustedTlds.find(tld => domain.endsWith(tld)) || trustedSpecific.find(d => domain === d || domain.endsWith('.' + d));
   const matchedStandard = standardTlds.find(tld => domain.endsWith(tld));
 
-  if (matchedHighTld) {
+  if (matchedTrusted) {
+    riskScore = Math.max(0, riskScore - 12);
+    signals.push({
+      category: 'Domain',
+      indicator: 'Government/Statutory Sovereign Domain',
+      evidence: `Registered under verified sovereign institutional domain '${matchedTrusted}'.`,
+      severity: 'LOW',
+      confidence: 99,
+      scoreImpact: -15,
+      signalType: 'BENIGN_SIGNAL',
+      sourceType: 'Tier 1: Government / Regulator / Law-Enforcement Source'
+    });
+  } else if (matchedHighTld) {
     riskScore += 22 + (h % 10);
     signals.push({
       category: 'Domain',
@@ -138,18 +151,6 @@ export const analyzeDomain = (parsedUrl, context = {}) => {
       scoreImpact: 8,
       signalType: 'CONTEXTUAL_SIGNAL',
       sourceType: 'Model-derived'
-    });
-  } else if (matchedTrusted) {
-    riskScore = Math.max(0, riskScore - 10);
-    signals.push({
-      category: 'Domain',
-      indicator: 'Government/Educational TLD',
-      evidence: `Registered under trusted '${matchedTrusted}' requiring verified institutional affiliation.`,
-      severity: 'LOW',
-      confidence: 98,
-      scoreImpact: -12,
-      signalType: 'BENIGN_SIGNAL',
-      sourceType: 'Tier 1: Government / Regulator / Law-Enforcement Source'
     });
   } else if (matchedStandard) {
     signals.push({

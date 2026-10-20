@@ -20,6 +20,9 @@ import { collectThreatIntelligence } from './threatIntelligence.js';
 import { analyzeInfrastructure } from './infrastructureAnalysis.js';
 import { analyzeIdentity } from './identityAnalysis.js';
 import { detectBrandImpersonation } from './brandImpersonation.js';
+import { collectLiveTelemetry } from './liveTelemetry.js';
+import { detectGamblingOrPonzi } from './gamblingDetector.js';
+import { checkGovernmentVerification } from './governmentVerification.js';
 
 function hashCode(str) {
   let hash = 0;
@@ -742,9 +745,10 @@ export function correlateSevenDimensions(matrix, domain, fullUrl) {
 
   let totalScore = Math.round(weightedScore);
 
+  const gpCheck = detectGamblingOrPonzi(domain, fullUrl);
+  const govtCheck = checkGovernmentVerification(domain, fullUrl);
+
   // Cross-Dimension Compounding Rules
-  // Rule 1: "Unknown does not mean safe"
-  // If Threat Intel is NOT_FOUND / 0 detections, but Domain is young + Identity is LOW + Claims or Behavior are elevated:
   const isThreatClean = dimThreat.detectedBy === 0;
   const isDomainYoung = dimDomain.metrics?.ageDays < 60;
   const isIdentityOpaque = dimIdentity.transparency === 'LOW';
@@ -760,16 +764,25 @@ export function correlateSevenDimensions(matrix, domain, fullUrl) {
     correlationNotes.push('Unknown-but-Suspicious Pattern: Zero blacklist listings, but brand-new registration correlates with opaque operator identity and aggressive incentives.');
   }
 
-  // Rule 2: Phishing correlation (Domain lookalike + Identity form mimicry + Credential collection)
+  // Phishing correlation
   if (dimDomain.metrics?.lookalikeDetected && hasHighRiskBehavior) {
     totalScore = Math.max(totalScore, 85);
     correlationNotes.push('Critical Phishing Correlation: Lookalike brand domain coupled with credential harvesting form.');
   }
 
-  // Rule 3: Gambling / Satta correlation (High bonus claims + deposit behavior + related mirrors)
-  if (dimContent.categories?.some(c => c.includes('Gambling')) && hasAggressiveClaims) {
-    totalScore = Math.max(totalScore, 68);
-    correlationNotes.push('Gambling / Wagering Correlation: Bonus-induced deposit onboarding correlated with shared hosting infrastructure.');
+  // Gambling / Betting / Satta / Ponzi enforcement
+  if (gpCheck.isDetected || dimContent.categories?.some(c => c.includes('Gambling'))) {
+    totalScore = Math.max(totalScore, 88);
+    correlationNotes.push(`Prohibited Entity: ${gpCheck.reason || 'Unlicensed betting and wagering operation detected.'}`);
+  } else if (!govtCheck.verified) {
+    totalScore = Math.max(totalScore, govtCheck.riskFloor || 70);
+    correlationNotes.push('Statutory Clearance: Entity is NOT verified by government or statutory regulatory bodies.');
+  }
+
+  // Sovereign government override
+  if (govtCheck.isGovt) {
+    totalScore = Math.min(10, totalScore);
+    correlationNotes.push(`Government Verified: Official sovereign portal (${govtCheck.citation}).`);
   }
 
   totalScore = Math.min(100, Math.max(0, totalScore));
@@ -795,15 +808,18 @@ export function correlateSevenDimensions(matrix, domain, fullUrl) {
   let primaryClassification = 'Legitimate';
   let classificationConfidence = 85;
 
-  if (dimContent.categories?.some(c => c.includes('Phishing')) || dimDomain.metrics?.lookalikeDetected) {
+  if (govtCheck.isGovt) {
+    primaryClassification = 'Government / Statutory Entity';
+    classificationConfidence = 99;
+  } else if (dimContent.categories?.some(c => c.includes('Phishing')) || dimDomain.metrics?.lookalikeDetected) {
     primaryClassification = 'Phishing / Credential Harvesting';
     classificationConfidence = 92;
-  } else if (dimContent.categories?.some(c => c.includes('Ponzi')) || dimClaims.score >= 30) {
+  } else if (gpCheck.isPonzi || dimContent.categories?.some(c => c.includes('Ponzi')) || dimClaims.score >= 30) {
     primaryClassification = 'High-Yield Investment Scam / Ponzi';
-    classificationConfidence = 88;
-  } else if (dimContent.categories?.some(c => c.includes('Gambling'))) {
-    primaryClassification = 'Online Betting / Wagering Platform';
-    classificationConfidence = 90;
+    classificationConfidence = 96;
+  } else if (gpCheck.isDetected || dimContent.categories?.some(c => c.includes('Gambling'))) {
+    primaryClassification = gpCheck.category || 'Online Betting / Wagering Platform';
+    classificationConfidence = 96;
   } else if (unknownSuspicious) {
     primaryClassification = 'Unknown Suspicious Scheme';
     classificationConfidence = 78;
@@ -871,11 +887,20 @@ export async function run7DClassification(targetUrl, options = {}) {
     domain = cleaned.replace(/^https?:\/\//i, '').split(/[/?#]/)[0].toLowerCase();
   }
 
-  // Step 1: Collect underlying intelligence telemetry
+  // Step 1: Collect underlying intelligence telemetry & live network probe
   const isDemo = Boolean(options.demoMode);
+  let liveTelemetry = options.liveTelemetry || null;
+  if (!liveTelemetry && !options.demoScenario) {
+    try {
+      liveTelemetry = await collectLiveTelemetry(fullUrl, domain);
+    } catch (e) {
+      console.warn('[7D] Live telemetry failed:', e.message);
+    }
+  }
+
   const [domainIntel, threatIntel] = await Promise.all([
-    collectDomainIntelligence(domain),
-    collectThreatIntelligence(fullUrl, domain, { demoMode: isDemo })
+    collectDomainIntelligence(domain, { liveTelemetry }),
+    collectThreatIntelligence(fullUrl, domain, { demoMode: isDemo, liveTelemetry })
   ]);
 
   const infraIntel = await analyzeInfrastructure(domain, domainIntel);

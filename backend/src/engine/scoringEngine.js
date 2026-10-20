@@ -8,6 +8,8 @@ import { analyzeContactIdentity } from './contactAnalyzer.js';
 import { classifyWebsite } from './classificationEngine.js';
 import { v4 as uuidv4 } from 'uuid';
 import { detectBrandImpersonation } from '../services/brandImpersonation.js';
+import { detectGamblingOrPonzi } from '../services/gamblingDetector.js';
+import { checkGovernmentVerification } from '../services/governmentVerification.js';
 
 /**
  * Deterministic hash for reproducible per-target metadata
@@ -66,54 +68,53 @@ export const normalizeUrl = (inputUrl) => {
  * Synthesizes multi-vector forensic indicators into explainable risk profiles.
  * Distinguishes between Technical Security, Regulatory Compliance, Commercial Risk, and Reputation Risk.
  */
-export const runComprehensiveRiskAssessment = (targetUrlInput) => {
+export const runComprehensiveRiskAssessment = (targetUrlInput, context = {}) => {
   const parsedUrl = normalizeUrl(targetUrlInput);
   const rawUrl = parsedUrl.href;
   const domain = parsedUrl.hostname.toLowerCase();
   const h = hashCode(domain);
   const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(domain);
+  const live = context.liveTelemetry;
 
-  // Execute modular intelligence analyzers
-  const domainResult = analyzeDomain(parsedUrl);
-  const technicalResult = analyzeTechnical(parsedUrl);
-  const contentResult = analyzeContent(rawUrl, parsedUrl);
-  const businessResult = analyzeBusinessModel(rawUrl, parsedUrl);
-  const reputationResult = analyzeReputation(rawUrl, parsedUrl);
-  const behaviorResult = analyzeBehavior(rawUrl, parsedUrl);
-  const contactIdentity = analyzeContactIdentity(parsedUrl, rawUrl, contentResult, domainResult);
+  // Execute modular intelligence analyzers with context
+  const domainResult = analyzeDomain(parsedUrl, context);
+  const technicalResult = analyzeTechnical(parsedUrl, context);
+  const contentResult = analyzeContent(rawUrl, parsedUrl, context);
+  const businessResult = analyzeBusinessModel(rawUrl, parsedUrl, context);
+  const reputationResult = analyzeReputation(rawUrl, parsedUrl, context);
+  const behaviorResult = analyzeBehavior(rawUrl, parsedUrl, context);
+  const contactIdentity = analyzeContactIdentity(parsedUrl, rawUrl, contentResult, domainResult, context);
   const contactRiskScore = Math.round(100 - contactIdentity.transparencyScore);
 
-  // Check for Online Gambling / Betting / Casino Operations
-  const gamblingKeywords = [
-    '1xbet', 'bet365', 'parimatch', 'dafabet', 'stake', 'melbet', 'betway',
-    'bet', 'casino', 'gambling', 'poker', 'sportsbook', 'slot', 'roulette',
-    'wager', 'satta', 'matka'
-  ];
-  const isGambling = gamblingKeywords.some(kw => domain.includes(kw));
+  const gpCheck = detectGamblingOrPonzi(domain, rawUrl, live);
+  const govtCheck = checkGovernmentVerification(domain, rawUrl);
+
+  // Check for Online Gambling / Satta / Betting / Casino Operations
+  const isGambling = gpCheck.isGambling || Boolean(live?.page?.categoriesMatched?.some(c => c.category === 'sattaMatka' || c.category === 'gamblingCasino'));
 
   // Check for Regional / Jurisdictional Targeting
   const geoSubdomains = ['indian.', 'in.', 'us.', 'uk.', 'id.', 'pk.', 'bd.', 'vn.', 'ph.', 'br.'];
   const hasGeoTarget = geoSubdomains.some(geo => domain.startsWith(geo) || domain.includes('.' + geo));
 
   // Check for Ponzi / Malicious Scams
-  const isPonziOrScam = 
-    domain.includes('profit') || domain.includes('crypto-yield') || domain.includes('double') ||
-    domain.includes('fastcash') || domain.includes('ponzi') || domain.includes('trap') || domain.includes('100x');
+  const isPonziOrScam = gpCheck.isPonzi || Boolean(live?.page?.categoriesMatched?.some(c => c.category === 'ponziYield'));
 
   // Check for Phishing / Credential Harvesting
   const impersonation = detectBrandImpersonation(domain, rawUrl);
-  const isPhishing = contentResult.metadata.brandSpoofDetected || impersonation.detected ||
+  const hasLivePhish = Boolean(live?.page?.brandImpersonation || live?.page?.categoriesMatched?.some(c => c.category === 'phishingHarvesting'));
+  const isPhishing = hasLivePhish || contentResult.metadata?.brandSpoofDetected || impersonation.detected ||
     domain.includes('secure-login') || domain.includes('verify-account') || 
     domain.includes('update-wallet') || domain.includes('portal-auth') || 
     domain.includes('confirm-identity');
 
   // Compute 7th dimension: Change Over Time
-  // Gambling mirrors rotate rapidly (45–65), Ponzi scams mutate fast (70–90), phishing is ephemeral (75–90), benign is stable (8–15)
   let changeOverTimeScore;
-  if (isGambling) {
-    changeOverTimeScore = 48 + (h % 14); // 48–62: frequent mirror churn
+  if (govtCheck.isGovt) {
+    changeOverTimeScore = 5;
+  } else if (isGambling) {
+    changeOverTimeScore = 55 + (h % 14); // 55–69: frequent mirror churn
   } else if (isPonziOrScam || isPhishing) {
-    changeOverTimeScore = 75 + (h % 15); // 75–90: high volatility / ephemeral
+    changeOverTimeScore = 80 + (h % 15); // 80–95: high volatility / ephemeral
   } else if (isIP) {
     changeOverTimeScore = 32 + (h % 12);
   } else {
@@ -121,7 +122,6 @@ export const runComprehensiveRiskAssessment = (targetUrlInput) => {
   }
 
   // Dimension Weights:
-  // Domain: 10%, Technical: 10%, Content: 15%, Business: 18%, Reputation: 18%, Behavior: 10%, ChangeOverTime: 12%, ContactIdentity: 7%
   const weightedScore = Math.round(
     domainResult.score * 0.10 +
     technicalResult.score * 0.10 +
@@ -140,36 +140,48 @@ export const runComprehensiveRiskAssessment = (targetUrlInput) => {
 
   // 2. Regulatory Risk Pillar (Legal / Licensing / Jurisdiction Compliance)
   let regulatoryRiskScore = 10;
-  if (isGambling && hasGeoTarget) {
-    // Cross-border betting specifically targeting restricted jurisdiction (e.g. indian.1xbet.com)
-    regulatoryRiskScore = 88 + (h % 8); // 88–95: High/Critical Regulatory Concern
+  if (govtCheck.isGovt) {
+    regulatoryRiskScore = 2;
+  } else if (isGambling && hasGeoTarget) {
+    regulatoryRiskScore = 92 + (h % 6);
   } else if (isGambling) {
-    regulatoryRiskScore = 80 + (h % 10); // 80–89: Unlicensed Cross-Border Gambling
+    regulatoryRiskScore = 88 + (h % 8);
   } else if (isPonziOrScam) {
-    regulatoryRiskScore = 90 + (h % 8); // 90–97: Illegal Ponzi/Securities Fraud
+    regulatoryRiskScore = 94 + (h % 5);
   } else if (isPhishing) {
-    regulatoryRiskScore = 85 + (h % 10); // 85–95: Cybercrime / Identity Theft
+    regulatoryRiskScore = 90 + (h % 8);
+  } else if (!govtCheck.verified) {
+    regulatoryRiskScore = 78 + (h % 10);
   } else if (isIP) {
     regulatoryRiskScore = 45 + (h % 15);
   } else {
-    regulatoryRiskScore = 8 + (h % 12); // 8–20: Compliant
+    regulatoryRiskScore = 8 + (h % 12);
   }
   const regulatoryRiskLevel = regulatoryRiskScore >= 75 ? 'HIGH' : regulatoryRiskScore >= 50 ? 'MEDIUM' : regulatoryRiskScore >= 30 ? 'LOW' : 'LOW';
 
   // 3. Commercial / Business Risk Pillar
-  const commercialRiskScore = Math.round(businessResult.score * 0.75 + contentResult.score * 0.25);
+  let commercialRiskScore = Math.round(businessResult.score * 0.75 + contentResult.score * 0.25);
+  if (govtCheck.isGovt) commercialRiskScore = 2;
+  else if (isGambling) commercialRiskScore = Math.max(commercialRiskScore, 85);
+  else if (isPonziOrScam) commercialRiskScore = Math.max(commercialRiskScore, 90);
+  else if (!govtCheck.verified) commercialRiskScore = Math.max(commercialRiskScore, 65);
   const commercialRiskLevel = commercialRiskScore >= 75 ? 'HIGH' : commercialRiskScore >= 50 ? 'HIGH' : commercialRiskScore >= 30 ? 'MEDIUM' : 'LOW';
 
   // 4. Reputation / OSINT Risk Pillar
-  const reputationRiskScore = reputationResult.score;
+  let reputationRiskScore = reputationResult.score;
+  if (govtCheck.isGovt) reputationRiskScore = 2;
   const reputationRiskLevel = reputationRiskScore >= 75 ? 'HIGH' : reputationRiskScore >= 50 ? 'HIGH' : reputationRiskScore >= 30 ? 'MEDIUM' : 'LOW';
 
   // Composite Risk Index calculation:
-  // Technical safety must NOT dominate the overall score.
-  // When an asset has elevated regulatory, commercial, or phishing risk, the overall risk reflects that statutory exposure.
   let finalScore = weightedScore;
-  if (isPhishing) {
-    finalScore = Math.max(finalScore, 85 + (h % 8)); // Phishing is inherently critical
+  if (govtCheck.isGovt) {
+    finalScore = Math.min(10, finalScore);
+  } else if (isPhishing) {
+    finalScore = Math.max(finalScore, 88 + (h % 8));
+  } else if (isGambling || isPonziOrScam) {
+    finalScore = Math.max(88 + (h % 8), Math.min(98, finalScore + 40));
+  } else if (!govtCheck.verified) {
+    finalScore = Math.max(govtCheck.riskFloor || 70, finalScore);
   } else if (regulatoryRiskScore >= 75 || commercialRiskScore >= 75) {
     const riskMultiplier = Math.max((regulatoryRiskScore - 40) * 0.32, (commercialRiskScore - 40) * 0.30);
     finalScore = Math.min(96, Math.max(finalScore, Math.round(weightedScore + riskMultiplier)));

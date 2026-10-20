@@ -23,6 +23,8 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { checkGovernmentVerification } from './governmentVerification.js';
+import { detectGamblingOrPonzi } from './gamblingDetector.js';
 
 function hashCode(str) {
   let hash = 0;
@@ -101,7 +103,27 @@ function calculateBehavioralScore(classification, domain) {
   const withdrawalTraps = contentSignals.filter(s => s.category === 'withdrawal_trap').length;
   const urgencySignals = contentSignals.filter(s => s.category === 'urgency').length;
   const credentialSignals = contentSignals.filter(s => s.category === 'credential_harvesting').length;
+  const sattaSignals = contentSignals.filter(s => s.category === 'satta_matka').length;
+  const stockSignals = contentSignals.filter(s => s.category === 'stock_advisory').length;
+  const brandSpoof = contentSignals.filter(s => s.category === 'brand_impersonation').length;
+  const apkDist = contentSignals.filter(s => s.category === 'apk_distribution').length;
   
+  if (sattaSignals > 0) {
+    score += 8;
+    signals.push({ signal: 'Illegal Satta Matka gambling content', impact: 8, detail: 'Wagering results, Jodi charts, and betting schemes detected on active page.' });
+  }
+  if (brandSpoof > 0) {
+    score += 8;
+    signals.push({ signal: 'Brand impersonation detected', impact: 8, detail: 'Website references trusted corporate brand on an unverified domain.' });
+  }
+  if (stockSignals > 0) {
+    score += 5;
+    signals.push({ signal: 'Unregistered stock advisory / trading tips', impact: 5, detail: 'Stock tips or trading calls detected without verifiable regulatory clearance.' });
+  }
+  if (apkDist > 0) {
+    score += 6;
+    signals.push({ signal: 'Direct Android APK distribution', impact: 6, detail: 'Bypasses Google Play Store security controls to distribute mobile app package.' });
+  }
   if (roiPromises > 0) {
     score += Math.min(4, roiPromises * 2);
     signals.push({ signal: 'ROI/profit promises detected', impact: Math.min(4, roiPromises * 2), detail: `${roiPromises} unrealistic return promise(s) found in content.` });
@@ -138,8 +160,9 @@ function calculateBehavioralScore(classification, domain) {
  * Main risk scoring engine
  * Correlates all intelligence sources into a single explainable score
  */
-export function calculateRiskScore(domainIntelligence, threatIntelligence, infrastructure, classification, identity, domain) {
+export function calculateRiskScore(domainIntelligence, threatIntelligence, infrastructure, classification, identity, domain, liveTelemetry = null) {
   const h = hashCode(domain);
+  const isTopBrand = ['google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'github.com', 'cloudflare.com', 'wikipedia.org', 'paypal.com', 'stripe.com', 'netflix.com', 'crypto.com'].some(b => domain === b || domain.endsWith('.' + b));
   
   // === Component scores (each capped at their max points) ===
   const behavioral = calculateBehavioralScore(classification, domain);
@@ -194,24 +217,120 @@ export function calculateRiskScore(domainIntelligence, threatIntelligence, infra
       signals: behavioral.signals
     }
   };
+
+  const gpCheck = classification?.gamblingOrPonzi || detectGamblingOrPonzi(domain, '', liveTelemetry);
+  const govtCheck = classification?.governmentVerification || checkGovernmentVerification(domain, '');
+
+  // 1. Live Telemetry Brand Impersonation
+  if (liveTelemetry?.page?.brandImpersonation) {
+    components.threatIntelligence.score = Math.max(components.threatIntelligence.score, 18);
+    components.threatIntelligence.signals.push({
+      signal: 'Brand Spoofing / Impersonation Vector',
+      impact: 18,
+      detail: liveTelemetry.page.brandImpersonation.reason
+    });
+  }
+
+  // 2. Gambling / Satta / Betting / Ponzi Enforcement
+  if (gpCheck.isDetected) {
+    const isPonzi = gpCheck.isPonzi;
+    components.websiteClassification.score = 20;
+    components.behavioralContent.score = Math.max(components.behavioralContent.score, 10);
+    components.threatIntelligence.score = Math.max(components.threatIntelligence.score, 19);
+    components.infrastructure.score = Math.max(components.infrastructure.score, 18);
+    components.domainIntelligence.score = Math.max(components.domainIntelligence.score, 18);
+    components.identityTrust.score = Math.max(components.identityTrust.score, 9);
+
+    components.threatIntelligence.signals.unshift({
+      signal: isPonzi ? 'Prohibited Ponzi Scheme / Capital Retention Trap' : 'Prohibited Online Betting & Wagering Syndicate',
+      impact: 20,
+      detail: `${gpCheck.reason} Unlicensed operations prohibited under statutory regulations.`
+    });
+
+    components.identityTrust.signals.unshift({
+      signal: 'Government Verification FAILED (Statutory Prohibition)',
+      impact: 18,
+      detail: govtCheck.evidence[0] || 'Entity has zero statutory government approval or licensing.'
+    });
+  } else if (classification?.primary === 'Financial Advisory / Stock Tips') {
+    components.websiteClassification.score = 16;
+    components.behavioralContent.score = Math.max(components.behavioralContent.score, 7);
+  }
+
+  // Host unreachable flag
+  if (liveTelemetry?.page && !liveTelemetry.page.reachable) {
+    components.infrastructure.score = Math.max(components.infrastructure.score, 10);
+    components.infrastructure.signals.push({
+      signal: 'Host Unreachable / Inactive Web Surface',
+      impact: 10,
+      detail: liveTelemetry.page.error ? `Failed to connect: ${liveTelemetry.page.error}` : 'Web application server did not respond to live connection probes.'
+    });
+  }
+
+  // 3. Government Verified Sovereign Portals (.gov.in, .nic.in, RBI, SEBI, etc.)
+  if (govtCheck.isGovt) {
+    components.domainIntelligence.score = 1;
+    components.infrastructure.score = 2;
+    components.threatIntelligence.score = 0;
+    components.websiteClassification.score = 0;
+    components.behavioralContent.score = 0;
+    components.identityTrust.score = 1;
+    components.domainIntelligence.signals = [{
+      signal: 'Government Verified Sovereign Entity',
+      impact: -25,
+      detail: govtCheck.citation
+    }];
+  } else if (govtCheck.status === 'REGULATED_INSTITUTION' || (isTopBrand && (domainIntelligence?.ageDays > 1000 || liveTelemetry?.rdap?.ageDays > 1000))) {
+    // Top enterprise / regulated banks override
+    components.domainIntelligence.score = Math.min(2, components.domainIntelligence.score);
+    components.infrastructure.score = Math.min(2, components.infrastructure.score);
+    components.threatIntelligence.score = 0;
+    components.websiteClassification.score = 0;
+    components.behavioralContent.score = 0;
+    components.identityTrust.score = Math.min(2, components.identityTrust.score);
+  } else if (!govtCheck.verified) {
+    // User Requirement: If website is NOT government verified, risk score must be high!
+    components.identityTrust.score = Math.max(components.identityTrust.score, 8);
+    components.identityTrust.signals.unshift({
+      signal: 'Government & Regulatory Verification FAILED',
+      impact: 15,
+      detail: govtCheck.evidence[0] || 'Website lacks official government or statutory regulatory authorization.'
+    });
+  }
   
-  // === Total score ===
-  const totalScore = Math.min(100, Math.max(0,
-    components.domainIntelligence.score +
+  // === Total score computation ===
+  let calculatedScore = components.domainIntelligence.score +
     components.infrastructure.score +
     components.threatIntelligence.score +
     components.websiteClassification.score +
     components.identityTrust.score +
-    components.behavioralContent.score
-  ));
-  
+    components.behavioralContent.score;
+
+  // Apply strict regulatory floors
+  if (govtCheck.isGovt) {
+    calculatedScore = Math.min(12, calculatedScore);
+  } else if (gpCheck.isDetected) {
+    // Any gambling, betting, or ponzi site MUST be High/Critical risk (88-96)
+    calculatedScore = Math.max(88, Math.min(98, calculatedScore));
+  } else if (!govtCheck.verified) {
+    // Non-govt verified websites must have HIGH risk score
+    calculatedScore = Math.max(govtCheck.riskFloor || 70, Math.min(96, calculatedScore));
+  }
+
+  const totalScore = Math.min(100, Math.max(0, calculatedScore));
   const riskLevel = getRiskLevel(totalScore);
   
   // === Unknown But Suspicious state ===
   const unknownSuspicious = isUnknownButSuspicious(components);
   
   let statusLabel;
-  if (unknownSuspicious) {
+  if (govtCheck.isGovt) {
+    statusLabel = 'GOVERNMENT VERIFIED';
+  } else if (gpCheck.isDetected) {
+    statusLabel = 'PROHIBITED — HIGH RISK';
+  } else if (!govtCheck.verified && totalScore >= 70) {
+    statusLabel = 'NOT GOVT. VERIFIED — HIGH RISK';
+  } else if (unknownSuspicious) {
     statusLabel = 'UNKNOWN BUT SUSPICIOUS';
   } else if (totalScore <= 20) {
     statusLabel = 'LOW RISK';
@@ -235,8 +354,14 @@ export function calculateRiskScore(domainIntelligence, threatIntelligence, infra
   
   // === Risk description ===
   let description;
-  if (unknownSuspicious) {
-    description = 'No confirmed threat-intelligence listing was found. However, multiple independent risk signals indicate elevated risk. Additional investigation is recommended before interaction.';
+  if (govtCheck.isGovt) {
+    description = `Verified sovereign government portal: ${govtCheck.citation}. Safe for public interaction.`;
+  } else if (gpCheck.isDetected) {
+    description = `Prohibited entity: ${gpCheck.reason} Not verified by government authorities. High risk of fraud or capital loss.`;
+  } else if (!govtCheck.verified) {
+    description = 'Website is NOT verified by government or statutory regulatory bodies. Interaction carries elevated risk.';
+  } else if (unknownSuspicious) {
+    description = 'No confirmed threat-intelligence listing was found. However, multiple independent risk signals indicate elevated risk.';
   } else if (totalScore <= 20) {
     description = 'Low observed risk across all intelligence dimensions. Standard monitoring recommended.';
   } else if (totalScore <= 40) {
@@ -262,6 +387,8 @@ export function calculateRiskScore(domainIntelligence, threatIntelligence, infra
     statusLabel,
     unknownSuspicious,
     description,
+    governmentVerification: govtCheck,
+    gamblingOrPonzi: gpCheck,
     components,
     topFactors,
     positiveFactors,

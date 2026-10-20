@@ -1,9 +1,5 @@
-/**
- * Reputation & OSINT Threat Intelligence Analyzer
- * Cross-references government/regulator advisories, threat feeds, abuse database reports,
- * investigative reporting, and community dispute telemetry.
- * Implements a strict 4-Tier Evidence-Confidence Hierarchy.
- */
+import { detectGamblingOrPonzi } from '../services/gamblingDetector.js';
+import { checkGovernmentVerification } from '../services/governmentVerification.js';
 
 function hashCode(str) {
   let hash = 0;
@@ -22,16 +18,20 @@ export const analyzeReputation = (url, parsedUrl, context = {}) => {
   const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(domain);
   const isPrivateIP = isIP && /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.)/.test(domain);
 
+  const live = context.liveTelemetry;
+  const gpCheck = detectGamblingOrPonzi(domain, url, live);
+  const govtCheck = checkGovernmentVerification(domain, url);
+
   // 1. Online Gambling / Betting brands
-  const gamblingKeywords = [
+  const isGambling = gpCheck.isGambling || [
     '1xbet', 'bet365', 'parimatch', 'dafabet', 'stake', 'melbet', 'betway',
     'bet', 'casino', 'gambling', 'poker', 'sportsbook', 'slot', 'roulette',
-    'wager', 'satta', 'matka'
-  ];
-  const isGambling = gamblingKeywords.some(kw => domain.includes(kw));
+    'wager', 'satta', 'matka', 'lotus365', 'winbuzz', 'mahadev', 'daman', 'fairplay'
+  ].some(kw => domain.includes(kw));
 
   // 2. High-Risk Scams / Ponzi / Phishing / Credential Harvesting
   const isHighRiskScam = 
+    gpCheck.isPonzi ||
     domain.includes('profit') || 
     domain.includes('crypto-yield') || 
     domain.includes('double') || 
@@ -54,9 +54,24 @@ export const analyzeReputation = (url, parsedUrl, context = {}) => {
 
   let riskScore = 8;
 
+  if (govtCheck.isGovt) {
+    riskScore = 2;
+    signals.push({
+      category: 'Reputation',
+      indicator: 'Verified Sovereign Authority & Lawful Registry',
+      evidence: `Official sovereign government portal (${govtCheck.citation}). Operating under constitutional mandate.`,
+      severity: 'LOW',
+      confidence: 99,
+      scoreImpact: -25,
+      signalType: 'BENIGN_SIGNAL',
+      sourceType: 'Tier 1: Government / Regulator / Law-Enforcement Source'
+    });
+    return { score: riskScore, signals };
+  }
+
   if (isGambling) {
-    // Expected range: 70–90 for gambling/betting reputation & OSINT
-    riskScore = 78 + (h % 10);
+    // Expected range: 80–95 for gambling/betting reputation & OSINT
+    riskScore = 84 + (h % 10);
 
     // Tier 1: Government / Regulator / Law-Enforcement Source
     signals.push({

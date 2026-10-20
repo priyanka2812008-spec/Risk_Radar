@@ -219,6 +219,7 @@ router.post('/analyze-url', async (req, res) => {
         : (preExecution.scoring.totalScore >= 30 
           ? 'Exercise caution — verify business credentials before engaging.' 
           : 'Low observed risk across tested intelligence vectors.'),
+      governmentVerification: preExecution.governmentVerification,
       passport: preExecution.passport,
       verificationToken: preExecution.verificationToken,
       scanId: preExecution.scanId,

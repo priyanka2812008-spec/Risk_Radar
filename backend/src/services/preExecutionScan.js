@@ -17,6 +17,7 @@ import { classifyWebsite } from './websiteClassifier.js';
 import { analyzeIdentity } from './identityAnalysis.js';
 import { calculateRiskScore } from './riskEngine.js';
 import { run7DClassification } from './sevenDimensionsEngine.js';
+import { collectLiveTelemetry } from './liveTelemetry.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -121,18 +122,28 @@ export async function runPreExecutionScan(targetInput, options = {}) {
   
   const isDemo = Boolean(options.demoMode || options.demoScenario);
   
+  // Real-time live telemetry probe (HTTP DOM, forms, DNS, TLS, RDAP)
+  let liveTelemetry = options.liveTelemetry || null;
+  if (!liveTelemetry && !options.demoScenario) {
+    try {
+      liveTelemetry = await collectLiveTelemetry(fullUrl, domain);
+    } catch (e) {
+      console.warn('[PreExecutionScan] Live telemetry collection failed:', e.message);
+    }
+  }
+
   // 1. Parallel Collection of Intelligence Signals
   // Domain Intelligence + Threat Intelligence
   const [domainIntel, threatIntel] = await Promise.all([
-    collectDomainIntelligence(domain),
-    collectThreatIntelligence(fullUrl, domain, { demoMode: isDemo })
+    collectDomainIntelligence(domain, { liveTelemetry }),
+    collectThreatIntelligence(fullUrl, domain, { demoMode: isDemo, liveTelemetry })
   ]);
   
   // 2. Infrastructure Relationship Analysis (depends on domain IP & ASN)
   const infraIntel = await analyzeInfrastructure(domain, domainIntel);
   
   // 3. Website Classification (correlates domain + threat + content signals)
-  const classification = classifyWebsite(domain, fullUrl, domainIntel, threatIntel);
+  const classification = classifyWebsite(domain, fullUrl, domainIntel, threatIntel, liveTelemetry);
   
   // 4. Contact & Identity Analysis (checks verifiable company credentials)
   const identityIntel = analyzeIdentity(domain, domainIntel);
@@ -144,7 +155,8 @@ export async function runPreExecutionScan(targetInput, options = {}) {
     infraIntel,
     classification,
     identityIntel,
-    domain
+    domain,
+    liveTelemetry
   );
   
   const scanDurationMs = Date.now() - startTime;
@@ -185,6 +197,7 @@ export async function runPreExecutionScan(targetInput, options = {}) {
       businessEmailMatch: identityIntel.email.domainMatch,
       messagingOnly: identityIntel.messagingOnly
     },
+    governmentVerification: riskResult.governmentVerification,
     topRiskFactors: riskResult.topFactors,
     positiveFactors: riskResult.positiveFactors,
     complianceStatus: riskResult.totalScore <= 20 ? 'COMPLIANT' : (riskResult.totalScore <= 60 ? 'REVIEW_REQUIRED' : 'PROHIBITED')
@@ -223,6 +236,10 @@ export async function runPreExecutionScan(targetInput, options = {}) {
       detectedSignals: classification.detectedSignals,
       contentSignals: classification.contentSignals
     },
+
+    // Statutory Government & Regulatory Verification
+    governmentVerification: riskResult.governmentVerification,
+    gamblingOrPonzi: riskResult.gamblingOrPonzi,
     
     // Modular Intelligence Telemetry
     intelligence: {
@@ -233,9 +250,11 @@ export async function runPreExecutionScan(targetInput, options = {}) {
     },
 
     // 7D Website Risk Classification Engine
-    sevenDimensions: await run7DClassification(fullUrl, { demoMode: isDemo }),
+    sevenDimensions: await run7DClassification(fullUrl, { demoMode: isDemo, liveTelemetry }),
     
     // Digital Risk Passport (B2B shareable compliance artifact)
     passport
   };
-}
+}    
+
+

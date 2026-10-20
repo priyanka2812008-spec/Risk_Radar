@@ -28,7 +28,8 @@ export const analyzeContent = (url, parsedUrl, context = {}) => {
   const gamblingKeywords = [
     '1xbet', 'bet365', 'parimatch', 'dafabet', 'stake', 'melbet', 'betway',
     'bet', 'casino', 'gambling', 'poker', 'sportsbook', 'slot', 'roulette',
-    'wager', 'satta', 'matka', 'ipl-bet', 'cricket-betting', 'baccarat', 'live-dealer'
+    'wager', 'satta', 'matka', 'ipl-bet', 'cricket-betting', 'baccarat', 'live-dealer',
+    'dpboss', 'kalyan', 'aviator', 'teenpatti', 'rummy', 'desawar', 'disawar'
   ];
 
   // 2. High-Yield & Ponzi Keywords
@@ -42,7 +43,7 @@ export const analyzeContent = (url, parsedUrl, context = {}) => {
   const phishingKeywords = [
     'secure-login', 'verify-account', 'update-wallet', 'portal-auth',
     'confirm-identity', 'signin-alert', 'banking-gate', 'metamask-recover',
-    'passphrase', 'ledger-sync', 'session-expired'
+    'passphrase', 'ledger-sync', 'session-expired', 'kyc-update', 'pan-update'
   ];
 
   // 4. Predatory E-commerce Keywords
@@ -51,10 +52,23 @@ export const analyzeContent = (url, parsedUrl, context = {}) => {
     'discount-brand', 'free-gift-card', 'flash-sale-vip'
   ];
 
+  // 5. Stock Tips & Trading Advisory
+  const stockAdvisoryKeywords = [
+    'stocktalk', 'stock-tips', 'trading-classes', 'share-market', 'nifty-tips', 'intraday-tips'
+  ];
+
+  const live = context.liveTelemetry;
+  const liveSatta = live?.page?.categoriesMatched?.find(c => c.category === 'sattaMatka');
+  const liveGambling = live?.page?.categoriesMatched?.find(c => c.category === 'gamblingCasino');
+  const liveStock = live?.page?.categoriesMatched?.find(c => c.category === 'stockTipsAdvisory');
+  const livePonzi = live?.page?.categoriesMatched?.find(c => c.category === 'ponziYield');
+  const livePhish = live?.page?.categoriesMatched?.find(c => c.category === 'phishingHarvesting') || live?.page?.brandImpersonation;
+
   const matchedGambling = gamblingKeywords.filter(k => fullTarget.includes(k));
   const matchedYield = highYieldKeywords.filter(k => fullTarget.includes(k));
   const matchedPhish = phishingKeywords.filter(k => fullTarget.includes(k));
   const matchedEcom = predatoryEcommerceKeywords.filter(k => fullTarget.includes(k));
+  const matchedStock = stockAdvisoryKeywords.filter(k => fullTarget.includes(k));
 
   let riskScore = 8;
 
@@ -70,32 +84,59 @@ export const analyzeContent = (url, parsedUrl, context = {}) => {
       signalType: 'CONTEXTUAL_SIGNAL',
       sourceType: 'Model-derived'
     });
-  } else if (matchedGambling.length > 0) {
-    // Expected range: 45–60 for gambling/betting content claims
-    riskScore = 46 + (h % 14);
-
+  } else if (liveSatta || fullTarget.includes('dpboss') || fullTarget.includes('matka') || fullTarget.includes('satta')) {
+    riskScore = 82;
+    signals.push({
+      category: 'Content',
+      indicator: 'Illegal Satta Matka Wagering Operations',
+      evidence: live?.page?.title 
+        ? `Live page title "${live.page.title}" publishes Satta Matka results, Kalyan/Disawar Jodi charts, and betting schemes.`
+        : 'Platform operates online Satta Matka results, charts, and betting numbers in violation of commercial gaming regulations.',
+      severity: 'CRITICAL',
+      confidence: 98,
+      scoreImpact: 35,
+      signalType: 'STRONG_INDICATOR',
+      sourceType: 'Live-telemetry inspection'
+    });
+  } else if (livePhish || matchedPhish.length > 0) {
+    riskScore = 86;
+    signals.push({
+      category: 'Content',
+      indicator: 'Credential Harvesting & Social Engineering Vector',
+      evidence: live?.page?.brandImpersonation 
+        ? live.page.brandImpersonation.reason 
+        : 'Page utilizes urgent authentication forms and credential prompts characteristic of credential harvesting portals.',
+      severity: 'CRITICAL',
+      confidence: 96,
+      scoreImpact: 35,
+      signalType: 'STRONG_INDICATOR',
+      sourceType: 'Live-telemetry inspection'
+    });
+  } else if (liveGambling || matchedGambling.length > 0) {
+    riskScore = 64 + (h % 10);
     signals.push({
       category: 'Content',
       indicator: 'Commercial Betting & Wagering Claims',
-      evidence: `Platform promotes real-money sports wagering, live casino odds, and aggressive promotional incentives matching [${matchedGambling.slice(0, 3).join(', ')}]. Commercial claims require independent verification against local advertising standards.`,
+      evidence: `Platform promotes real-money sports wagering, live casino odds, and promotional incentives${live?.page?.title ? ` ("${live.page.title}")` : ''}.`,
       severity: 'HIGH',
       confidence: 93,
-      scoreImpact: 22,
+      scoreImpact: 26,
       signalType: 'STRONG_INDICATOR',
-      sourceType: 'Model-derived'
+      sourceType: 'Live-telemetry inspection'
     });
-
+  } else if (liveStock || matchedStock.length > 0) {
+    riskScore = 44 + (h % 8);
     signals.push({
       category: 'Content',
-      indicator: 'Promotional Wagering Inducements & Bonus Multipliers',
-      evidence: 'High-frequency deposit matching promotions and promotional betting credits detected in marketing copy. Presents financial exposure risk for retail consumers.',
+      indicator: 'Unregistered Stock Advisory & Trading Tips',
+      evidence: `Platform promotes share trading tips, intraday calls, or trading courses${live?.page?.title ? ` ("${live.page.title}")` : ''}. Requires independent SEBI/regulatory verification.`,
       severity: 'MEDIUM',
       confidence: 88,
-      scoreImpact: 14,
+      scoreImpact: 18,
       signalType: 'CONTEXTUAL_SIGNAL',
-      sourceType: 'Model-derived'
+      sourceType: 'Live-telemetry inspection'
     });
-  } else if (matchedYield.length > 0) {
+  } else if (livePonzi || matchedYield.length > 0) {
     const yieldBoost = 40 + Math.min(30, matchedYield.length * 10) + (h % 10);
     riskScore += yieldBoost;
 

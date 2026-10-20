@@ -1,11 +1,5 @@
-/**
- * Risk Radar Website Risk Classification Engine
- * Evaluates multi-vector forensic telemetry to identify the operational pattern / risk type of a target.
- * 
- * IMPORTANT: CLASSIFICATION != RISK LEVEL
- * - Risk Score (0-100) and Risk Level tell HOW RISKY the website is.
- * - Classification tells WHAT TYPE OF WEBSITE / RISK PATTERN was detected.
- */
+import { detectGamblingOrPonzi, BETTING_GAMBLING_BRANDS, GAMBLING_KEYWORDS, PONZI_KEYWORDS } from '../services/gamblingDetector.js';
+import { checkGovernmentVerification } from '../services/governmentVerification.js';
 
 // Helper: Normalize and check multiple keywords
 function matchCount(text, keywords) {
@@ -48,20 +42,36 @@ export const classifyWebsite = ({
 
   const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(domain);
 
+  const gpCheck = detectGamblingOrPonzi(domain, rawUrl);
+  const govtCheck = checkGovernmentVerification(domain, rawUrl);
+
+  if (govtCheck.isGovt) {
+    return {
+      primary: 'Government / Statutory Entity',
+      secondary: ['Official Sovereign Portal', 'Statutory Authority', 'Government Verified'],
+      confidence: 99,
+      explanation: `Verified sovereign government portal (${domain}) operating under official authority: ${govtCheck.citation}`,
+      evidence: [{ signal: govtCheck.citation, strength: 'high' }]
+    };
+  }
+
   // 1. Keyword Signal Dictionaries
-  const gamblingKeywords = [
+  const gamblingKeywords = [...new Set([
+    ...BETTING_GAMBLING_BRANDS,
+    ...GAMBLING_KEYWORDS,
     '1xbet', 'bet365', 'parimatch', 'dafabet', 'stake', 'melbet', 'betway',
     'bet', 'casino', 'gambling', 'poker', 'sportsbook', 'slot', 'slots', 'roulette',
     'wager', 'wagering', 'satta', 'matka', 'ipl-bet', 'cricket-betting', 'baccarat',
     'live-dealer', 'odds', 'jackpot', 'betting-app', 'bookmaker', 'i-gaming'
-  ];
+  ])];
 
-  const ponziKeywords = [
+  const ponziKeywords = [...new Set([
+    ...PONZI_KEYWORDS,
     'guaranteed-return', 'daily-return', 'passive-income', '100x', 'double-money',
     'risk-free-investment', 'guaranteed-profit', 'ponzi', 'fastcash', 'high-yield',
     'yield-farm', 'liquidity-pool-guarantee', 'fixed-apy', 'referral-bonus',
     'pyramid-commission', 'downstream-earning', 'recruit-to-earn', 'unfreeze-tax'
-  ];
+  ])];
 
   const cryptoTradingKeywords = [
     'crypto', 'bitcoin', 'ethereum', 'trading-bot', 'arbitrage-bot',

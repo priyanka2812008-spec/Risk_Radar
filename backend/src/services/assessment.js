@@ -10,7 +10,8 @@
  */
 
 import { runComprehensiveRiskAssessment } from '../engine/scoringEngine.js';
-import { runPreExecutionScan } from './preExecutionScan.js';
+import { runPreExecutionScan, normalizeTargetUrl } from './preExecutionScan.js';
+import { collectLiveTelemetry } from './liveTelemetry.js';
 
 const levelFor = (score) => {
   if (score >= 75) return 'CRITICAL';
@@ -137,10 +138,13 @@ function adoptClassification(assessment, pe) {
 export function reconcileAssessment(assessment, preExecution) {
   assessment.preExecution = preExecution;
   assessment.sevenDimensions = preExecution.sevenDimensions;
+  assessment.governmentVerification = preExecution.governmentVerification;
+  assessment.gamblingOrPonzi = preExecution.gamblingOrPonzi;
   assessment.passport = {
     ...assessment.passport,
     verificationToken: preExecution.verificationToken,
-    unknownSuspicious: preExecution.scoring.unknownSuspicious
+    unknownSuspicious: preExecution.scoring.unknownSuspicious,
+    governmentVerification: preExecution.governmentVerification
   };
 
   const legacyScore = assessment.score;
@@ -150,9 +154,17 @@ export function reconcileAssessment(assessment, preExecution) {
   adoptClassification(assessment, preExecution);
   mergeEvidence(assessment, preExecution);
 
-  if (peScore <= legacyScore) return assessment;
+  // Determine final score based on government verification and gambling/ponzi rules
+  let finalScore = Math.max(legacyScore, peScore);
 
-  const finalScore = peScore;
+  if (preExecution.governmentVerification?.isGovt) {
+    finalScore = Math.min(12, peScore);
+  } else if (preExecution.gamblingOrPonzi?.isDetected) {
+    finalScore = Math.max(88, finalScore);
+  } else if (preExecution.governmentVerification?.verified === false) {
+    finalScore = Math.max(preExecution.governmentVerification.riskFloor || 70, finalScore);
+  }
+
   const level = levelFor(finalScore);
   const pe = preExecution;
 
@@ -318,8 +330,18 @@ function rebuildNarrative(assessment, pe, level) {
  * Run both engines for a URL and return the reconciled assessment.
  */
 export async function runFullAssessment(url, options = {}) {
-  const preExecution = await runPreExecutionScan(url, options);
-  const assessment = runComprehensiveRiskAssessment(url);
+  const target = normalizeTargetUrl(url);
+  let liveTelemetry = options.liveTelemetry || null;
+  if (!liveTelemetry && !options.demoScenario) {
+    try {
+      liveTelemetry = await collectLiveTelemetry(target.fullUrl, target.domain);
+    } catch (e) {
+      console.warn('[runFullAssessment] Live telemetry collection error:', e.message);
+    }
+  }
+
+  const preExecution = await runPreExecutionScan(url, { ...options, liveTelemetry });
+  const assessment = runComprehensiveRiskAssessment(url, { liveTelemetry });
   return reconcileAssessment(assessment, preExecution);
 }
 

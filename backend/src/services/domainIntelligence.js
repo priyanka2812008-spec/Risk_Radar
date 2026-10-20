@@ -61,7 +61,7 @@ async function resolveDnsRecords(domain) {
 /**
  * Generate deterministic but realistic domain intelligence
  */
-function generateDomainIntelligence(domain, dnsRecords) {
+function generateDomainIntelligence(domain, dnsRecords, liveTelemetry = null) {
   const h = hashCode(domain);
   const isIP = /^(\d{1,3}\.){3}\d{1,3}$/.test(domain);
   const parts = domain.split('.');
@@ -97,11 +97,15 @@ function generateDomainIntelligence(domain, dnsRecords) {
   const topBrands = ['google.com', 'microsoft.com', 'apple.com', 'amazon.com', 'github.com', 'cloudflare.com', 'wikipedia.org', 'stripe.com'];
   const isTopBrand = topBrands.some(b => domain === b || domain.endsWith('.' + b));
 
-  // === Domain Age Simulation ===
+  // === Domain Age (RDAP Real Lookup or Deterministic Fallback) ===
   let ageDays, registrationDate, expirationDate;
   const now = new Date();
   
-  if (domain.includes('instant-bonus') || domain === 'instant-bonus-pay.cc') {
+  if (liveTelemetry?.rdap?.ageDays !== undefined) {
+    ageDays = liveTelemetry.rdap.ageDays;
+    registrationDate = new Date(liveTelemetry.rdap.registrationDate || (now.getTime() - ageDays * 86400000));
+    expirationDate = liveTelemetry.rdap.expirationDate ? new Date(liveTelemetry.rdap.expirationDate) : new Date(registrationDate.getTime() + 365 * 86400000);
+  } else if (domain.includes('instant-bonus') || domain === 'instant-bonus-pay.cc') {
     ageDays = 2; // Textbook Unknown-but-Suspicious requirement (2 days old)
   } else if (isTopBrand) {
     ageDays = 5000 + (h % 5000); // 13-27 years
@@ -117,8 +121,10 @@ function generateDomainIntelligence(domain, dnsRecords) {
     ageDays = 90 + (h % 3650);
   }
   
-  registrationDate = new Date(now.getTime() - ageDays * 86400000);
-  expirationDate = new Date(registrationDate.getTime() + (365 * (1 + (h % 4))) * 86400000);
+  if (!registrationDate) {
+    registrationDate = new Date(now.getTime() - ageDays * 86400000);
+    expirationDate = new Date(registrationDate.getTime() + (365 * (1 + (h % 4))) * 86400000);
+  }
   
   // === Registrar ===
   const registrars = {
@@ -129,10 +135,17 @@ function generateDomainIntelligence(domain, dnsRecords) {
   };
   
   let registrar;
-  if (isTopBrand) registrar = registrars.legitimate[h % registrars.legitimate.length];
-  else if (isSuspicious) registrar = registrars.suspicious[h % registrars.suspicious.length];
-  else if (isGambling) registrar = registrars.gambling[h % registrars.gambling.length];
-  else registrar = registrars.standard[h % registrars.standard.length];
+  if (liveTelemetry?.rdap?.registrar) {
+    registrar = liveTelemetry.rdap.registrar;
+  } else if (isTopBrand) {
+    registrar = registrars.legitimate[h % registrars.legitimate.length];
+  } else if (isSuspicious) {
+    registrar = registrars.suspicious[h % registrars.suspicious.length];
+  } else if (isGambling) {
+    registrar = registrars.gambling[h % registrars.gambling.length];
+  } else {
+    registrar = registrars.standard[h % registrars.standard.length];
+  }
   
   // === WHOIS Privacy ===
   const whoisPrivacy = isSuspicious || (isGambling && isHighRiskTld) || (h % 3 === 0 && !isTopBrand);
@@ -207,7 +220,7 @@ function generateDomainIntelligence(domain, dnsRecords) {
   else if (isGambling) country = countries.gambling[h % countries.gambling.length];
   else country = countries.standard[h % countries.standard.length];
   
-  // === SSL Certificate ===
+  // === SSL Certificate (Live TLS or Simulation) ===
   const sslIssuers = {
     free: ["Let's Encrypt Authority X3", "Let's Encrypt R3", 'ZeroSSL', 'Google Trust Services LLC'],
     enterprise: ['DigiCert Inc.', 'Sectigo Ltd.', 'GlobalSign nv-sa', 'Entrust Inc.'],
@@ -215,7 +228,11 @@ function generateDomainIntelligence(domain, dnsRecords) {
   };
   
   let sslIssuer, sslDaysRemaining, sslType;
-  if (isTopBrand) {
+  if (liveTelemetry?.tls?.issuer && liveTelemetry.tls.issuer !== 'None' && liveTelemetry.tls.issuer !== 'Unknown') {
+    sslIssuer = liveTelemetry.tls.issuer;
+    sslDaysRemaining = liveTelemetry.tls.daysRemaining ?? 90;
+    sslType = liveTelemetry.tls.valid ? 'Verified TLS Certificate' : 'Untrusted / Expired TLS';
+  } else if (isTopBrand) {
     sslIssuer = sslIssuers.enterprise[h % sslIssuers.enterprise.length];
     sslDaysRemaining = 180 + (h % 180);
     sslType = 'Extended Validation (EV)';
@@ -351,6 +368,50 @@ function generateDomainIntelligence(domain, dnsRecords) {
     });
   }
   
+  // Real DNS checks from liveTelemetry
+  if (liveTelemetry?.dns) {
+    if (!liveTelemetry.dns.hasMx && !isTopBrand) {
+      riskScore += 8;
+      signals.push({
+        signal: 'No Corporate Mail Exchange (MX) Records',
+        severity: 'MEDIUM',
+        detail: 'Domain has no active MX records configured. Legitimate companies almost always configure mail routing.',
+        scoreImpact: 8
+      });
+    }
+    if (!liveTelemetry.dns.hasSpf && liveTelemetry.dns.hasMx) {
+      riskScore += 4;
+      signals.push({
+        signal: 'Missing Sender Policy Framework (SPF)',
+        severity: 'LOW',
+        detail: 'No SPF record detected, leaving domain vulnerable to email address spoofing.',
+        scoreImpact: 4
+      });
+    }
+  }
+
+  // Real TLS cert check
+  if (liveTelemetry?.tls && !liveTelemetry.tls.valid) {
+    riskScore += 18;
+    signals.push({
+      signal: 'Invalid / Untrusted TLS Certificate',
+      severity: 'HIGH',
+      detail: liveTelemetry.tls.error || 'Destination TLS certificate failed validation.',
+      scoreImpact: 18
+    });
+  }
+
+  // Established domain bonus (e.g. 10+ years tenure like google, github, crypto.com)
+  if (ageDays >= 3650 && !isSuspicious && !isGambling) {
+    riskScore = Math.max(0, riskScore - 12);
+    signals.push({
+      signal: 'Established Domain Tenure',
+      severity: 'LOW',
+      detail: `Domain has been registered for over ${Math.floor(ageDays / 365)} years (${ageDays} days) with continuous operation.`,
+      scoreImpact: -12
+    });
+  }
+
   riskScore = Math.min(20, Math.max(0, riskScore));
   
   return {
@@ -394,13 +455,14 @@ function generateDomainIntelligence(domain, dnsRecords) {
 /**
  * Main entry point: collect domain intelligence
  */
-export async function collectDomainIntelligence(domain) {
+export async function collectDomainIntelligence(domain, options = {}) {
   try {
+    const liveTelemetry = options.liveTelemetry || null;
     // Attempt real DNS resolution first
-    const dnsRecords = await resolveDnsRecords(domain);
+    const dnsRecords = liveTelemetry?.dns?.resolved ? liveTelemetry.dns : await resolveDnsRecords(domain);
     
     // Generate comprehensive domain intelligence
-    const intelligence = generateDomainIntelligence(domain, dnsRecords);
+    const intelligence = generateDomainIntelligence(domain, dnsRecords, liveTelemetry);
     intelligence.dnsResolved = dnsRecords.resolved;
     
     return intelligence;
