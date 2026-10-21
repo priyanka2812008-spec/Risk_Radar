@@ -1,0 +1,47 @@
+name: Keep Backend Alive (Render Free Tier Wakeup)
+
+on:
+  schedule:
+    # Runs every 25 minutes - prevents Render free tier from sleeping
+    - cron: '*/25 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    name: Ping Risk Radar Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ping Health Endpoint
+        run: |
+          echo "Pinging Risk Radar backend at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+          RESPONSE=$(curl --silent --max-time 30 --write-out "\n%{http_code}" \
+            "https://risk-radar-vmtp.onrender.com/api/health")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "Backend is ONLINE and responding!"
+          else
+            echo "Backend returned unexpected status: $HTTP_CODE"
+            exit 1
+          fi
+
+      - name: Warm Up Scan Engine
+        run: |
+          echo "Sending warm-up scan to keep engine active..."
+
+          curl --silent --max-time 40 \
+            --header "Content-Type: application/json" \
+            --data '{"url":"https://github.com"}' \
+            "https://risk-radar-vmtp.onrender.com/api/scan" \
+            --output /dev/null \
+            --write-out "Warm-up status: %{http_code}\n" || true
+
+          echo "Keep-alive ping complete!"
