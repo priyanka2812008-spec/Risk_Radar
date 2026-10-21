@@ -296,8 +296,8 @@ export default function DashboardView({
       </div>
 
       {/* 2. MAIN 3-COLUMN SOC DASHBOARD GRID */}
-      {/* Explicit pixel columns: Left 310px, Center 1fr, Right 330px */}
-      <div className="grid grid-cols-1 xl:grid-cols-[310px_1fr_330px] 2xl:grid-cols-[330px_1fr_350px] gap-4 xl:gap-5 items-stretch">
+      {/* Stacks vertically on mobile/tablet, 3 cols only on xl+ */}
+      <div className="grid grid-cols-1 xl:grid-cols-[300px_1fr_310px] 2xl:grid-cols-[330px_1fr_350px] gap-4 xl:gap-5 items-stretch">
         
         {/* ================= LEFT COLUMN ================= */}
         <div className="flex flex-col gap-4">
@@ -376,21 +376,21 @@ export default function DashboardView({
         </div>
 
         {/* ================= CENTER STAGE (The 3D Cyber Earth) ================= */}
-        <div className="relative rounded-2xl border border-cyan-500/25 bg-[#04091a]/90 p-4 sm:p-5 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex flex-col justify-between overflow-hidden min-h-[580px]">
+        <div className="relative rounded-2xl border border-cyan-500/25 bg-[#04091a]/90 p-4 sm:p-5 backdrop-blur-md shadow-[0_12px_40px_rgba(0,0,0,0.7)] flex flex-col justify-between overflow-hidden min-h-[360px] sm:min-h-[480px] xl:min-h-[580px]">
           
-          {/* Coordinates Overlay */}
-          <div className="absolute top-4 left-5 z-20 font-mono text-xs text-cyan-400/80 pointer-events-none">
+          {/* Coordinates Overlay - hidden on small mobile to avoid clutter */}
+          <div className="hidden sm:block absolute top-4 left-5 z-20 font-mono text-xs text-cyan-400/80 pointer-events-none">
             <div>34.0522° N</div>
             <div>118.2437° W</div>
           </div>
 
-          <div className="absolute bottom-16 right-5 z-20 font-mono text-xs text-cyan-400/80 text-right pointer-events-none">
+          <div className="hidden sm:block absolute bottom-16 right-5 z-20 font-mono text-xs text-cyan-400/80 text-right pointer-events-none">
             <div>51.5074° N</div>
             <div>0.1278° W</div>
           </div>
 
-          {/* Floating Card 1: GLOBAL THREAT ACTIVITY (Top-Right) */}
-          <div className="absolute top-4 right-4 z-20 w-56 sm:w-60 rounded-xl border border-cyan-500/30 bg-[#060f26]/90 p-3 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+          {/* Floating Card 1: GLOBAL THREAT ACTIVITY — only on md+ screens */}
+          <div className="hidden md:block absolute top-4 right-4 z-20 w-56 sm:w-60 rounded-xl border border-cyan-500/30 bg-[#060f26]/90 p-3 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)]">
             <div className="flex items-center justify-between mb-2">
               <span className="font-display text-[10px] font-bold tracking-wider text-cyan-300">
                 GLOBAL THREAT ACTIVITY
@@ -423,7 +423,7 @@ export default function DashboardView({
           </div>
 
           {/* THE 3D CYBER GLOBE CANVAS (Centered in stage) */}
-          <div className="relative my-auto flex items-center justify-center h-[380px] sm:h-[440px] w-full">
+          <div className="relative my-auto flex items-center justify-center h-[280px] sm:h-[380px] xl:h-[440px] w-full">
             <div className="relative h-full w-full max-w-[460px]">
               <CyberGlobeCanvas isScanning={scanning} />
               {/* Orbiting Concentric Radar Rings */}
@@ -431,8 +431,8 @@ export default function DashboardView({
             </div>
           </div>
 
-          {/* Floating Card 2: RECENT THREAT TRENDS (Bottom-Right) */}
-          <div className="absolute bottom-16 right-4 z-20 w-60 sm:w-64 rounded-xl border border-cyan-500/30 bg-[#060f26]/90 p-3 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+          {/* Floating Card 2: RECENT THREAT TRENDS — only on md+ screens */}
+          <div className="hidden md:block absolute bottom-16 right-4 z-20 w-60 sm:w-64 rounded-xl border border-cyan-500/30 bg-[#060f26]/90 p-3 backdrop-blur-md shadow-[0_0_20px_rgba(6,182,212,0.2)]">
             <div className="font-display text-[10px] font-bold tracking-wider text-cyan-300 mb-2">
               RECENT THREAT TRENDS
             </div>
@@ -566,7 +566,7 @@ export default function DashboardView({
       </div>
 
       {/* 3. BOTTOM ROW: 5 KPI METRIC CARDS WITH SPARKLINES */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-3.5">
         
         {/* KPI 1: System Online */}
         <div className="rounded-2xl border border-cyan-500/20 bg-[#050c1e]/85 p-4 backdrop-blur-md shadow-[0_4px_20px_rgba(0,0,0,0.5)] flex flex-col justify-between">

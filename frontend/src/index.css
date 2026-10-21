@@ -9,11 +9,14 @@
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
+    /* Prevent horizontal scrolling on mobile */
+    overflow-x: hidden;
   }
 
   body {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height for mobile browsers */
     background-color: theme('colors.ink.950');
     /* Faint circuit grid + logo glow, fixed so it never scrolls with content */
     background-image:
@@ -29,6 +32,29 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent horizontal overflow from content */
+    overflow-x: hidden;
+  }
+
+  /* Prevent iOS safari from zooming in on inputs (font-size must be >= 16px) */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+  @media (min-width: 640px) {
+    input, select, textarea {
+      font-size: 14px !important;
+    }
+  }
+
+  /* Minimum touch target size for accessibility on mobile */
+  button, a, [role="button"] {
+    min-height: 36px;
+  }
+
+  /* Better image rendering on all screens */
+  img {
+    max-width: 100%;
+    height: auto;
   }
 
   ::selection {
@@ -43,8 +69,14 @@
   }
 
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 6px;
+    height: 6px;
+  }
+  @media (min-width: 1024px) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -52,7 +84,7 @@
   ::-webkit-scrollbar-thumb {
     background: theme('colors.ink.600');
     border-radius: 999px;
-    border: 3px solid theme('colors.ink.950');
+    border: 2px solid theme('colors.ink.950');
   }
   ::-webkit-scrollbar-thumb:hover {
     background: theme('colors.ink.500');
@@ -220,6 +252,69 @@
   .animate-evidence-fly {
     animation: evidence-fly 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile Responsive Utilities                                          */
+/* ------------------------------------------------------------------ */
+
+/* Safe-area aware padding for notched/punch-hole phones */
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Responsive table: hide overflow, allow horizontal scroll on small screens */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Full-width on mobile, max-width on desktop */
+.container-fluid {
+  width: 100%;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+/* Prevent text overflow in flex children */
+.truncate-flex {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Card grid: 1 col mobile → 2 col tablet → auto on desktop */
+.card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+@media (min-width: 640px) {
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 1024px) {
+  .card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+}
+
+/* Touch-optimized scrollable tabs */
+.tabs-scroll {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+.tabs-scroll > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
 }
 
 @keyframes cyber-float {

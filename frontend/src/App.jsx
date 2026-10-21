@@ -320,7 +320,7 @@ export default function App() {
           </div>
         )}
 
-        <main className={`mx-auto w-full flex-1 ${route.tab === 'threat-globe' || route.tab === 'dashboard' ? 'max-w-[1560px] p-2 sm:p-4' : 'max-w-[1320px] px-3.5 pb-24 pt-4 sm:px-6 sm:pb-28 sm:pt-6 lg:px-8 lg:pb-16 lg:pt-8'}`}>
+        <main className={`mx-auto w-full flex-1 ${route.tab === 'threat-globe' || route.tab === 'dashboard' ? 'max-w-[1560px] p-2 sm:p-4 pb-24 lg:pb-4' : 'max-w-[1320px] px-3.5 pb-24 pt-4 sm:px-6 sm:pb-28 sm:pt-6 lg:px-8 lg:pb-16 lg:pt-8'}`}>
           {route.tab === 'threat-globe' && (
             <CyberThreatVisualizer
               onOpenReport={openScan}
