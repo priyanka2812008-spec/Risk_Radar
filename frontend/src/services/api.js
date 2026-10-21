@@ -1,13 +1,23 @@
 import axios from 'axios';
 
+const normalizeUrl = (u) => {
+  if (!u) return '';
+  const trimmed = u.trim().replace(/\/+$/, '');
+  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+};
+
 const getApiBase = () => {
-  if (import.meta.env.VITE_API_URL && !import.meta.env.VITE_API_URL.includes('localhost')) {
-    return import.meta.env.VITE_API_URL;
+  if (typeof window !== 'undefined') {
+    const override = localStorage.getItem('riskradar_api_base');
+    if (override) return normalizeUrl(override);
+  }
+  if (import.meta.env.VITE_API_URL) {
+    return normalizeUrl(import.meta.env.VITE_API_URL);
   }
   if (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
     return `http://${window.location.hostname}:5000/api`;
   }
-  return import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  return 'https://risk-radar-vmtp.onrender.com/api';
 };
 
 const API_BASE_URL = getApiBase();
@@ -17,21 +27,44 @@ const client = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000
+  timeout: 45000
 });
+
+export const getActiveApiUrl = () => client.defaults.baseURL || API_BASE_URL;
 
 /** Turn an axios failure into one sentence a person can act on */
 export const errorMessage = (err) => {
   if (err?.response?.data?.error) return err.response.data.error;
-  if (err?.code === 'ECONNABORTED') return 'The scan took too long. Try again in a moment.';
-  if (err?.message === 'Network Error') return `Can't reach the Risk Radar backend at ${API_BASE_URL}. Start it with "npm run dev" in the backend folder.`;
+  if (err?.code === 'ECONNABORTED') return 'Connection timed out. If using Render cloud, it may take 20–30s to wake up on free tier. Please retry.';
+  if (err?.message === 'Network Error') return `Can't reach the Risk Radar backend at ${client.defaults.baseURL || API_BASE_URL}. Ensure the backend is running or woke up on Render.`;
   return err?.message || 'Something went wrong.';
 };
 
 export const api = {
   health: async () => {
-    const res = await client.get('/health', { timeout: 4000 });
-    return res.data;
+    // 25s timeout allows cold-started cloud instances (e.g. Render free tier) to finish waking up
+    try {
+      const res = await client.get('/health', { timeout: 25000 });
+      return res.data;
+    } catch (primaryErr) {
+      // Smart fallback: If primary failed and we have an alternate URL, attempt alternate
+      const current = client.defaults.baseURL || API_BASE_URL;
+      const isLocal = current.includes('localhost') || current.includes('127.0.0.1');
+      const alternate = isLocal
+        ? 'https://risk-radar-vmtp.onrender.com/api'
+        : 'http://localhost:5000/api';
+
+      try {
+        const altRes = await axios.get(`${alternate}/health`, { timeout: 8000 });
+        if (altRes?.data?.status) {
+          client.defaults.baseURL = alternate;
+          return altRes.data;
+        }
+      } catch {
+        // Both failed
+      }
+      throw primaryErr;
+    }
   },
 
   // 7D Website Risk Classification Engine

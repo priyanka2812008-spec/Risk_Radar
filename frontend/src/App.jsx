@@ -76,16 +76,27 @@ export default function App() {
     return results.every((r) => r.status === 'fulfilled');
   }, []);
 
-  const checkHealth = useCallback(async () => {
+  const checkHealth = useCallback(async (isManualRetry = false) => {
+    if (isManualRetry) setHealth((prev) => ({ ...prev, retrying: true }));
     try {
       const h = await api.health();
-      setHealth({ ...h, status: 'online' });
+      setHealth({ ...h, status: 'online', retrying: false });
       return true;
     } catch {
-      setHealth({ status: 'offline' });
+      setHealth((prev) => ({ ...prev, status: 'offline', retrying: false }));
       return false;
     }
   }, []);
+
+  const handleRetry = useCallback(async () => {
+    const ok = await checkHealth(true);
+    if (ok) {
+      await loadData();
+      showToast('Scanning engine connected successfully!', 'success');
+    } else {
+      showToast('Still unable to reach scanning engine. Render may take ~20-30s to wake up.', 'error');
+    }
+  }, [checkHealth, loadData, showToast]);
 
   // Boot: health, data, and deep links from the browser extension (?scan=domain)
   useEffect(() => {
@@ -292,11 +303,19 @@ export default function App() {
           <div className="no-print mx-4 mt-4 flex items-start gap-3 rounded-xl border border-risk-critical/40 bg-risk-critical/10 px-4 py-3 text-[13px] text-rose-100 sm:mx-8">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-risk-critical" />
             <div className="flex-1">
-              <span className="font-semibold">The scanning engine is offline.</span> Start the backend with{' '}
-              <code className="kbd">npm run dev</code> from the project folder, then retry.
+              <span className="font-semibold">The scanning engine is offline or spinning up.</span>{' '}
+              {health.retrying
+                ? 'Connecting to backend engine... (Render free tier may take ~20-30s to wake up)'
+                : 'Unable to reach backend API. If deployed on Render free tier, instances spin down when idle and take ~20–30s to wake up on first request.'}
             </div>
-            <button type="button" className="btn-secondary btn-sm" onClick={() => checkHealth().then((ok) => ok && loadData())}>
-              Retry
+            <button
+              type="button"
+              className="btn-secondary btn-sm flex items-center gap-1.5 shrink-0"
+              disabled={health.retrying}
+              onClick={handleRetry}
+            >
+              {health.retrying && <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-white/20 border-t-white" />}
+              {health.retrying ? 'Connecting…' : 'Retry'}
             </button>
           </div>
         )}

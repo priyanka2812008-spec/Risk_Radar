@@ -34,7 +34,7 @@ const SECTIONS = [
 
 function EngineStatus({ health }) {
   const online = health.status === 'online';
-  const checking = health.status === 'checking';
+  const checking = health.status === 'checking' || health.retrying;
   const dot = online ? 'bg-emerald-400' : checking ? 'bg-amber-400' : 'bg-rose-500';
 
   return (

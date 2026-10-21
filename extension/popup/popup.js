@@ -4,7 +4,7 @@
  * and renders evidence-based risk telemetry without user copy-pasting.
  */
 
-const DEFAULT_API_BASE = 'http://localhost:5000/api';
+const DEFAULT_API_BASE = 'https://risk-radar-vmtp.onrender.com/api';
 let currentActiveTab = null;
 let currentTargetUrl = '';
 let currentTargetDomain = '';

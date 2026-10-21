@@ -3,7 +3,7 @@
  * Manages background intelligence queries, badge states, and local telemetry cache.
  */
 
-const DEFAULT_API_URL = 'http://localhost:5000/api';
+const DEFAULT_API_URL = 'https://risk-radar-vmtp.onrender.com/api';
 
 // On extension installed or updated
 chrome.runtime.onInstalled.addListener(() => {

@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { KeyRound, Plus, Copy, Check, AlertTriangle, Puzzle } from 'lucide-react';
 import { PageHeader, Panel, Modal, Meter, EmptyState } from './ui';
 import { timeAgo } from '../lib/risk';
-import { errorMessage } from '../services/api';
+import { errorMessage, getActiveApiUrl } from '../services/api';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE = getActiveApiUrl();
 
 function CopyButton({ text, label = 'Copy' }) {
   const [copied, setCopied] = useState(false);

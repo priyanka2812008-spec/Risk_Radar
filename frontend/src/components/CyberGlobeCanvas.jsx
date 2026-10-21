@@ -245,7 +245,7 @@ export default function CyberGlobeCanvas({
       scanWavesRef.current.forEach((wave) => {
         wave.radius += isScanning ? 0.007 : wave.speed;
         if (wave.radius > 1.35) wave.radius = 0.35;
-        const waveR = baseRadius * wave.radius;
+        const waveR = Math.max(0.1, baseRadius * wave.radius);
         const alpha = Math.max(0, 0.55 * (1 - (wave.radius - 0.35) / 1.0));
 
         ctx.strokeStyle = `rgba(34, 211, 238, ${alpha})`;
@@ -397,8 +397,9 @@ export default function CyberGlobeCanvas({
           ctx.fill();
           ctx.shadowBlur = 0;
 
-          // Pulsing Ping Ring around Hub
-          const pingR = 4 + 7 * ((time * 0.002 + hub.lat) % 1);
+          // Pulsing Ping Ring around Hub (safe positive radius for all latitudes)
+          const pingPhase = Math.abs((time * 0.002 + Math.abs(hub.lat)) % 1);
+          const pingR = Math.max(0.1, 4 + 7 * pingPhase);
           const pingAlpha = Math.max(0, 1 - pingR / 11);
           ctx.strokeStyle = `rgba(${isSpecial ? '251, 146, 60' : '34, 211, 238'}, ${pingAlpha})`;
           ctx.lineWidth = 1;
